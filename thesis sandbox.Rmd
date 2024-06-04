@@ -1,0 +1,664 @@
+---
+title: "thesis sandbox"
+output: html_document
+date: "2024-03-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading the network
+
+### Let's try to use the code from the assignment
+
+```{r}
+library(readr)
+library(igraph)
+library(pacman)
+p_load('WikipediR', 'rvest', 'xml2')
+library(dplyr)
+```
+load category data via the WikiMedia Action API
+```{r}
+repub_pages <- pages_in_category("en", "wikipedia", categories = "Republican Party (United States)", type = "page")
+
+repub_pages2 <- pages_in_category("en", "wikipedia", categories = "Republicans (United States)", type = "page")
+
+demo_pages <- pages_in_category("en", "wikipedia", categories = "Democratic Party (United States)", type = "page")
+
+demo_pages2 <- pages_in_category("en", "wikipedia", categories = "Democrats (United States)", type = "page")
+
+num_members <- length(demo_pages$query$categorymembers)
+
+num_members2 <- length(demo_pages2$query$categorymembers)
+
+dem_titles <- c()
+
+# Iterate through each category member
+for (i in 1:num_members) {
+  dem_titles[i] <- demo_pages$query$categorymembers[[i]]$title
+}
+
+for (i in 1:num_members2) {
+  dem_titles[50 + i] <- demo_pages2$query$categorymembers[[i]]$title
+}
+
+num_members_r <- length(repub_pages$query$categorymembers)
+num_members_r2 <- length(repub_pages2$query$categorymembers)
+
+repub_titles <- c()
+
+# Iterate through each category member
+for (i in 1:num_members_r) {
+  repub_titles[i] <- repub_pages$query$categorymembers[[i]]$title
+}
+
+for (i in 1:num_members_r2) {
+  repub_titles[50 + i] <- repub_pages2$query$categorymembers[[i]]$title
+}
+
+extract_categories <- function(category_string, depth) {
+  if (depth > 4) return(NA)  # Base case: Stop at depth 4
+  
+  subcats <- pages_in_category("en", "wikipedia", categories = category_string, type = "subcat")
+  
+  num_cats <- length(subcats$query$categorymembers)
+  
+  # Return NA if no subcategories found
+  if (num_cats == 0) return(NA)
+  
+  cats <- c()
+  
+  # Iterate through each category member
+  for (i in 1:num_cats) {
+    cat_title <- subcats$query$categorymembers[[i]]$title
+    cats <- c(cats, cat_title)  # Add current category title
+  }
+  
+  # Recursive call for ALL subcategories (up to depth 4)
+  for (i in 1:num_cats) {
+    current_title <- subcats$query$categorymembers[[i]]$title
+    current_title <- gsub("^Category:", "", current_title)
+    depth <- depth + 1
+    sub_sub_cats <- extract_categories(current_title, depth)
+    cats <- c(cats, sub_sub_cats)  # Append extracted sub-subcategories
+  }
+  
+  Sys.sleep(1)
+  
+  return(cats)
+}
+
+
+demo_subcats1 <- extract_categories("Democratic Party (United States)", depth = 0)
+
+demo_subcats2 <- extract_categories("Democrats (United States)", depth = 0)
+
+demo_subcats <- union(demo_subcats1, demo_subcats2)
+
+demo_subcats <- gsub("^Category:", "", demo_subcats)
+
+# now the same with the republican pages
+repub_subcats1 <- extract_categories("Republican Party (United States)", depth = 0)
+
+repub_subcats2 <- extract_categories("Republicans (United States)", depth = 0)
+
+repub_subcats <- union(repub_subcats1, repub_subcats2)
+
+repub_subcats <- gsub("^Category:", "", repub_subcats)
+
+# remove NA values
+demo_subcats <- demo_subcats[!is.na(demo_subcats)]
+repub_subcats <- repub_subcats[!is.na(repub_subcats)]
+
+# from demo_subcats, remove Democrats (United States), Fictional Democrats (United States)
+demo_subcats <- demo_subcats[!demo_subcats %in% c("Fictional Democrats (United States)")]
+
+# from repub_subcats, remove Republican Party (United States), Fictional Republicans (United States)
+
+repub_subcats <- repub_subcats[!repub_subcats %in% c("Republican Party (United States)")]
+
+extract_pages <- function(subcategory_list) {
+  
+  pages <- c()
+  
+  for (i in 1:length(subcategory_list)) {
+    current_pages <- pages_in_category("en", "wikipedia", categories = subcategory_list[i], type = "page")
+    current_num <- length(current_pages$query$categorymembers)
+    if (current_num == 0) {
+      next
+    }
+    current_titles <- c()
+    # Iterate through each category member
+    for (j in 1:current_num) {
+      
+      current_titles[j] <- current_pages$query$categorymembers[[j]]$title
+    }
+    pages <- c(pages, current_titles)
+  }
+  
+  Sys.sleep(1)
+  
+  return(pages)
+}
+
+democrat_pages <- extract_pages(demo_subcats)
+
+democrat_pages <- unique(democrat_pages)
+
+missing_pages <- setdiff(dem_titles, democrat_pages) # get pages from original categories
+
+democrat_pages <- c(democrat_pages, missing_pages)
+
+length(democrat_pages)
+
+# repeat for republican pages
+
+republican_pages <- extract_pages(repub_subcats)
+
+republican_pages <- unique(republican_pages)
+
+missing_pages <- setdiff(repub_titles, republican_pages)
+
+republican_pages <- c(republican_pages, missing_pages)
+
+length(republican_pages)
+```
+
+```{r}
+# Clean and preprocess the titles
+republican_pages <- tolower(republican_pages)
+clean_repub_titles <- gsub(" ", "_", republican_pages)
+democrat_pages <- tolower(democrat_pages)
+clean_dem_titles <- gsub(" ", "_", democrat_pages)
+# trim whitespace
+clean_repub_titles <- trimws(clean_repub_titles)
+clean_dem_titles <- trimws(clean_dem_titles)
+```
+
+
+
+
+
+
+Now for the data:
+```{r}
+process_data_to_graph <- function(file_path, min_weight = 50) {
+  # Read the data from the specified file
+  data <- read_tsv(file_path, col_names = FALSE, col_select = c(1, 2, 4))
+  
+  # Remove rows where X4 (the weight column) is less than the specified minimum weight
+  data <- data[data$X4 >= min_weight, ]
+  
+  # Rename the X4 column to "weight"
+  colnames(data)[3] <- "weight"
+  
+  # Create a graph from the data frame
+  graph <- graph_from_data_frame(data, directed = TRUE)
+  
+  # Remove the data frame from memory
+  remove(data)
+  
+  # Return the graph object
+  return(graph)
+}
+
+# Usage example
+file_path <- "data/clicknov20.tsv"
+test_network <- process_data_to_graph(file_path)
+```
+
+```{r}
+# Convert vertex names to lowercase
+vertex_names <- tolower(V(net_clicknov20)$name)
+vertex_names <- gsub(" ", "_", vertex_names)
+vertex_names <- trimws(vertex_names)
+
+V(net_clicknov20)$name <- tolower(V(net_clicknov20)$name)
+
+republican_pages <- which(vertex_names %in% clean_repub_titles) # get indices of republican pages
+democrat_pages <- which(vertex_names %in% clean_dem_titles)
+
+party_affiliation <- rep("Other", vcount(net_clicknov20)) # initialise party affiliation vector
+
+# Assign party affiliations
+party_affiliation[republican_pages] <- "Republican"
+party_affiliation[democrat_pages] <- "Democrat"
+
+# Add the party affiliation attribute to the network
+V(net_clicknov20)$party <- party_affiliation
+
+# Subset vertices with party affiliation "Democrat"
+# Extract the names of the Democrat vertices
+democrat_vertices <- as.character(V(net_clicknov20)$name[party_affiliation == "Democrat"])
+rep_vertices <- as.character(V(net_clicknov20)$name[party_affiliation == "Republican"])
+
+# Find vertices that match cleaned titles
+# repub_vertices <- vertex_names %in% clean_repub_titles
+# dem_vertices <- vertex_names %in% clean_dem_titles
+
+# get non-FALSE entries from both lists
+# repub_vertices <- which(repub_vertices)
+# dem_vertices <- which(dem_vertices)
+
+assign_party_affiliation <- function(graph, clean_repub_titles, clean_dem_titles) {
+  # Convert vertex names to lowercase, replace spaces with underscores, and trim whitespace
+  vertex_names <- tolower(V(graph)$name)
+  vertex_names <- gsub(" ", "_", vertex_names)
+  vertex_names <- trimws(vertex_names)
+  
+  # Update vertex names in the graph
+  V(graph)$name <- vertex_names
+  
+  # Get indices of republican and democrat pages
+  republican_pages <- which(vertex_names %in% clean_repub_titles)
+  democrat_pages <- which(vertex_names %in% clean_dem_titles)
+  
+  # Initialise party affiliation vector
+  party_affiliation <- rep("Other", vcount(graph))
+  
+  # Assign party affiliations
+  party_affiliation[republican_pages] <- "Republican"
+  party_affiliation[democrat_pages] <- "Democrat"
+  
+  # Add the party affiliation attribute to the network
+  V(graph)$party <- party_affiliation
+  
+  # Return the updated graph
+  return(graph)
+}
+
+graph <- assign_party_affiliation(graph, clean_repub_titles, clean_dem_titles)
+```
+
+remove all except the ones that have a connection to relevant pages
+
+```{r}
+# Find vertices with party attribute "Republican" or "Democrat"
+rep_dem_vertices <- V(net_clicknov20_test)[party %in% c("Republican", "Democrat")]
+
+neighbors_rep_dem <- integer(0)
+
+# Iterate through each vertex in rep_dem_vertices
+for (vertex_id in rep_dem_vertices) {
+  # Get neighbors of the current vertex
+  vertex_neighbors <- neighbors(net_clicknov20_test, vertex_id)
+  
+  # Add neighbors to neighbors_rep_dem
+  neighbors_rep_dem <- union(neighbors_rep_dem, vertex_neighbors)
+}
+
+# Remove duplicates from neighbors_rep_dem
+neighbors_rep_dem <- unique(neighbors_rep_dem)
+
+neighbors_rep_dem <- V(net_clicknov20_test)[neighbors_rep_dem]
+
+# Combine Republican/Democrat vertices and their neighbors
+vertices_to_keep <- union(rep_dem_vertices, neighbors_rep_dem)
+
+# identify vertices not in vertices_to_keep
+vertices_to_delete <- V(net_clicknov20_test)[!V(net_clicknov20_test) %in% vertices_to_keep]
+
+# Delete vertices
+net_clicknov20_cleaned <- delete_vertices(net_clicknov20_test, vertices_to_delete)
+
+# get names of other vertices
+other_vertices <- V(net_clicknov20_cleaned)$name[party_affiliation == "Other"]
+
+other_vertices <- unique(other_vertices)
+
+# remove isolates
+ net_clicknov20_cleaned <- delete_vertices(
+   net_clicknov20_cleaned, which(degree(net_clicknov20_cleaned) == 0))
+ 
+# Define the function
+clean_graph <- function(graph) {
+  # Find vertices with party attribute "Republican" or "Democrat"
+  rep_dem_vertices <- V(graph)[party %in% c("Republican", "Democrat")]
+
+  neighbors_rep_dem <- integer(0)
+
+  # Iterate through each vertex in rep_dem_vertices
+  for (vertex_id in rep_dem_vertices) {
+    # Get neighbors of the current vertex
+    vertex_neighbors <- neighbors(graph, vertex_id)
+    
+    # Add neighbors to neighbors_rep_dem
+    neighbors_rep_dem <- union(neighbors_rep_dem, vertex_neighbors)
+  }
+
+  # Remove duplicates from neighbors_rep_dem
+  neighbors_rep_dem <- unique(neighbors_rep_dem)
+
+  neighbors_rep_dem <- V(graph)[neighbors_rep_dem]
+
+  # Combine Republican/Democrat vertices and their neighbors
+  vertices_to_keep <- union(rep_dem_vertices, neighbors_rep_dem)
+
+  # Identify vertices not in vertices_to_keep
+  vertices_to_delete <- V(graph)[!V(graph) %in% vertices_to_keep]
+
+  # Delete vertices
+  cleaned_graph <- delete_vertices(graph, vertices_to_delete)
+
+  # Remove isolates
+  cleaned_graph <- delete_vertices(cleaned_graph, which(degree(cleaned_graph) == 0))
+
+  # Remove the old non-cleaned graph from memory
+  remove(graph)
+
+  # Return the cleaned graph
+  return(cleaned_graph)
+}
+
+# Usage example
+graph <- net_clicknov20_test  # Replace this with your actual graph object
+cleaned_graph <- clean_graph(graph)
+```
+
+```{r}
+update_graph_with_affiliations <- function(graph) {
+  # Hardcoded path to the neighbor affiliation file
+  affiliation_file_path <- "data/neighbor_affiliation.csv"
+  
+  # Read the neighbor affiliations from the specified file
+  neighbor_affiliations <- read_csv(affiliation_file_path, col_names = TRUE)
+  
+  # Clean the 'Element' column by removing leading and trailing double quotes
+  neighbor_affiliations <- neighbor_affiliations %>%
+    mutate(Element = gsub('^"|"$', '', Element))
+  
+  # Update the graph with the neighbor affiliations
+  for(i in 1:nrow(neighbor_affiliations)) {
+    element <- neighbor_affiliations$Element[i]
+    category <- neighbor_affiliations$Category[i]
+    
+    # Find the corresponding node in the graph and update the "party" attribute
+    node_index <- which(V(graph)$name == element)
+    if (length(node_index) > 0) {
+      V(graph)$party[node_index] <- category
+    }
+  }
+  
+  # Remove the neighbor affiliations data frame from memory
+  remove(neighbor_affiliations)
+  
+  # Return the updated graph
+  return(graph)
+}
+
+# Usage example
+graph <- net_clicknov20_cleaned  # Replace this with your actual graph object
+updated_graph <- update_graph_with_affiliations(graph)
+```
+
+
+```{r descriptieve_analysis}
+# Descriptive analysis
+
+# average weighted degree
+(mean_degree_out <- mean(strength(net_clicknov20_cleaned, mode = "all", weights = E(net_clicknov20_cleaned)$X4)))
+
+# plot degree distribution as CCDF
+prob <- degree_distribution(net_clicknov20_cleaned, mode = "all")
+
+# Remove indegree=0 (the first probability index is removed)
+prob <- prob[-1] 
+
+# Remove indegrees with proportion=0
+nonzero_pos <- which(prob!=0)
+prob <- prob[nonzero_pos]
+
+d <- degree(net_clicknov20_cleaned, mode='all')
+
+# Create a vector including all non-zero-probability indegrees
+degree <- 1:max(d)
+degree <- degree[nonzero_pos]
+
+ccdf <- NULL
+for (i in 1:length(prob)) {
+  ccdf[i] = sum( prob[ seq(i, length(prob)) ] )
+}
+plot <- plot(ccdf ~ degree, xlab='Degree d', ylab='Complementary CDF P(X>=d)', log='xy', col='blue')
+
+# reciprocity
+reciprocity(net_clicknov20_cleaned)
+
+# number of vertices with all possible party affiliations
+(sum(V(net_clicknov20_cleaned)$party == "Republican"))
+(sum(V(net_clicknov20_cleaned)$party == "Democrat"))
+(sum(V(net_clicknov20_cleaned)$party == "Other"))
+
+# Convert party attribute to numeric
+V(net_clicknov20_cleaned)$party_num <- as.numeric(factor(V(net_clicknov20_cleaned)$party, levels = c("Democrat", "Republican", "Politics", "Other")))
+
+# Compute assortativity
+assortativity(net_clicknov20_cleaned, V(net_clicknov20_cleaned)$party_num, directed = TRUE)
+# not a good measure bc of the high inequality between number of nodes in the three party affiliations
+
+### try weighted assortativity instead??
+
+# Get the adjacency matrix
+adj_matrix <- as.matrix(get.adjacency(net_clicknov20_cleaned, sparse = FALSE))
+
+# Get the party numbers for each vertex
+party_numbers <- V(net_clicknov20_cleaned)$party_num
+
+# Create an empty mixing matrix
+mixing_matrix <- matrix(0, nrow = length(unique(party_numbers)), ncol = length(unique(party_numbers)))
+
+# Fill in the mixing matrix
+for (i in 1:length(party_numbers)) {
+  for (j in 1:length(party_numbers)) {
+    mixing_matrix[party_numbers[i], party_numbers[j]] <- mixing_matrix[party_numbers[i], party_numbers[j]] + adj_matrix[i, j]
+  }
+}
+
+# Print the mixing matrix
+print(mixing_matrix)
+# you can see that the mixing matrix is also not very informative because of the high inequality between the number of nodes in the three party affiliations - of course connections between republican and democrat pages are rare but they are also the rarest categories!
+
+# modularity
+communities <- cluster_walktrap(net_clicknov20_cleaned, weights = net_clicknov20_cleaned$X4)
+modularity_score <- modularity(communities)
+print(modularity_score)
+
+num_communities <- 3  # replace with your desired number of communities
+membership <- cutat(communities, no = num_communities)
+
+# Get the party affiliations
+party_affiliations <- V(net_clicknov20_cleaned)$party
+
+# Create a cross-tabulation
+table <- table(Community = membership, Party = party_affiliations)
+
+
+analyze_graph <- function(graph) {
+  # Calculate average weighted degree
+  mean_degree_out <- mean(strength(graph, mode = "all", weights = E(graph)$weight))
+  
+  # Calculate reciprocity
+  graph_reciprocity <- reciprocity(graph)
+  
+  # Count the number of vertices with each party affiliation
+  num_republican <- sum(V(graph)$party == "Republican")
+  num_democrat <- sum(V(graph)$party == "Democrat")
+  num_politics <- sum(V(graph)$party == "Politics")
+  num_other <- sum(V(graph)$party == "Other")
+  
+  # Convert party attribute to numeric
+  V(graph)$party_num <- as.numeric(factor(V(graph)$party, levels = c("Democrat", "Republican", "Politics", "Other")))
+  
+  # Compute assortativity
+  graph_assortativity <- assortativity(graph, V(graph)$party_num, directed = TRUE)
+  
+  # Return the results as a list
+  return(list(
+    mean_degree_out = mean_degree_out,
+    reciprocity = graph_reciprocity,
+    num_republican = num_republican,
+    num_democrat = num_democrat,
+    num_politics = num_politics,
+    num_other = num_other,
+    assortativity = graph_assortativity
+  ))
+}
+
+# Usage example
+graph <- net_clicknov20_cleaned  # Replace this with your actual graph object
+
+results <- analyze_graph(graph)
+```
+
+
+```{r}
+random_party_walk <- function(graph, start, steps, weights, party_type, mode = "out", stuck = "return") {
+  # Initialize the current node
+  current_node <- start
+  current_node <- V(graph)$name[current_node]
+  partition_switch <- FALSE
+  n_steps <- 0
+  
+  # Perform the random walk
+  for (i in 1:steps) {
+    # Get neighbors of the current node based on the specified mode
+    node_neighbors <- neighbors(graph, current_node, mode = mode)
+    
+    
+    # If there are no neighbors, return or break depending on the "stuck" parameter
+    if (length(node_neighbors) == 0) {
+      # node_neighbors <- neighbors(graph, current_node, mode = "all")
+      # print name of node neighbours for testing
+      return(NA)
+    }
+
+    # Choose a random neighbor weighted by the edge weights
+    node_neighbor <- V(graph)$name[node_neighbors]
+    edge_weights <- sapply(node_neighbor, function(neighbor) {
+      edge_index <- get.edge.ids(graph, c(current_node, neighbor))
+      E(graph)[edge_index]$weight
+    })
+    
+    # Calculate sum of edge weights
+    sum_weights <- sum(edge_weights)
+
+    # Normalize edge weights to obtain probabilities
+    probabilities <- edge_weights / sum_weights
+
+    # Sample a neighbor using the probabilities
+    next_node_index <- sample(length(node_neighbors), 1, prob = probabilities)
+    next_node <- node_neighbors[next_node_index]
+    
+    next_node <- as.character(V(graph)$name[next_node])
+    
+    
+    
+    # Update the current node
+    current_node <- next_node
+    
+    
+    n_steps <- n_steps + 1
+    
+    
+    current_node_index <- which(V(graph)$name == current_node)
+    
+    
+    if (party_type == "Democrat"){
+     # Check if the current node has the desired party affiliation
+      if (V(graph)$party[current_node_index] == "Republican") {
+        partition_switch <- TRUE
+        break  # Stop the random walk if the current node is Republican
+      }
+    } else if (party_type == "Republican") {
+      if (V(graph)$party[current_node_index] == "Democrat") {
+        partition_switch <- TRUE
+        break  # Stop the random walk if the current node is Democrat
+      }
+    }
+  }
+  if (partition_switch == FALSE) {
+    n_steps <- n_steps + 1
+  }
+  # Return the final node reached by the random walk
+  return(c(current_node, n_steps))
+}
+
+# now to turn it into a loop - I want to run this 100 times and then take the average number of steps it takes to get to the opposite partition
+
+analyze_party_walk <- function(graph, party, iterations = 50, steps = 10) {
+  n_trapped <- 0
+  steps_needed <- vector(mode = "list", length = iterations)
+  n_part_shift <- 0
+  
+  for (i in 1:iterations) {
+    cat("\r", i, flush = TRUE)
+    party_vertices <- which(V(graph)$party == party)
+    start_node <- sample(party_vertices, 1)
+    
+    output <- random_party_walk(
+      graph, start_node, steps = steps, weights = E(graph)$weight, party_type = party, mode = "out", stuck = "return"
+    )
+    
+    if (any(is.na(output))) {
+      n_trapped <- n_trapped + 1
+      next
+    }
+    
+    final_node <- output[1]
+    steps_taken <- as.numeric(output[2])
+    final_node_index <- which(V(graph)$name == final_node)
+    final_node_party <- V(graph)$party[final_node_index]
+    
+    steps_needed[i] <- steps_taken
+    
+    if (final_node_party != party) {
+      n_part_shift <- n_part_shift + 1
+    }
+  }
+  
+  steps_needed <- unlist(steps_needed)
+  mean_steps <- mean(steps_needed, na.rm = TRUE)
+  
+  return(list(mean_steps = mean_steps, n_part_shift = n_part_shift, n_trapped = n_trapped))
+}
+```
+
+
+```{r}
+# try to run it a hundered times and take the average
+# add the rest of the nodes back in
+
+#ERGMs for edges between republican and democrat? add a time element as coefficient?
+
+#Qs for Shakeel: 
+# how feasible is it to use R on GCP? I'm not too confident in doing this in Python bc my networks class is in R...
+# also: I have a network where a) one edge (main party pages) dominates everything else and b) the rest of the network is very sparse (a lot of nodes do not have relevant neighbours). How do I deal with this?
+
+
+# fabian - depending on how big the network is, it might be too big because R keeps it in RAM (need to request RAM according to how large your dataset is)
+# rsync source destination
+# log scale for dataset then fit linear regression
+# check if igraph supports parallelisation 
+# -> paralellise over 6 cores
+# use foreach parallel package
+
+# sliding windows of 2 month series so you only analyse 2 months at a time
+
+# alternative: networkx in python 
+```
+
+
+### Meeting with Patrick
+
+Plan: 
+1. take one revision of each article from the same amount of time (Revision API gets you most recent revision to a timestamp)
+2. robustness check: for each article take a another time stamp from each month and get a dissimilarity score (hopefully this will return only noise)
+3. then see how hyperlinks changed from month to month for each article (for example grab one hyperlink (with regex maybe) and track its changes over time)
+  -> note that there are other papers who have tracked the movements of hyperlinks, orient yourself based on Lerman, Helic, Strohmaier (their work is NOT helpful here as it tunrs out)
+    -> Idea: extract lead section and infobox using regex, then extract all hyperlinks in these two sections. do these for all timestamps, then track dissimilarity scores
+    -> Other Idea: just do dissimilarity scores on the lead and infobox themselves instead of extracting hyperlinks
+  -> note that you should pay special attention to times when page views spike (e.g. election time) and see if hyperlinks changed during that time (sample more revisions during that time)
+  
+  - look at the other articles he mentioned (how readers browse Wikipedia, large scale attention shifts following COVID-19 mobility restrictions)
+
