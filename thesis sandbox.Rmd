@@ -151,8 +151,6 @@ missing_pages <- setdiff(dem_titles, democrat_pages) # get pages from original c
 
 democrat_pages <- c(democrat_pages, missing_pages)
 
-length(democrat_pages)
-
 # repeat for republican pages
 
 republican_pages <- extract_pages(repub_subcats)
@@ -163,10 +161,6 @@ missing_pages <- setdiff(repub_titles, republican_pages)
 
 republican_pages <- c(republican_pages, missing_pages)
 
-length(republican_pages)
-```
-
-```{r}
 # Clean and preprocess the titles
 republican_pages <- tolower(republican_pages)
 clean_repub_titles <- gsub(" ", "_", republican_pages)
@@ -179,6 +173,24 @@ clean_dem_titles <- trimws(clean_dem_titles)
 
 
 
+```{r}
+process_data_to_graph <- function(file_path, min_weight = 50) {
+  # Read the data from the specified file
+  data <- read_tsv(file_path, col_names = FALSE, col_select = c(1, 2, 4))
+  
+  # Remove rows where X4 (the weight column) is less than the specified minimum weight
+  data <- data[data$X4 >= min_weight, ]
+  
+  # Rename the X4 column to "weight"
+  colnames(data)[3] <- "weight"
+  
+  # Create a graph from the data frame
+  graph <- graph_from_data_frame(data, directed = TRUE)
+  
+  # Return the graph object
+  return(graph)
+}
+```
 
 
 
@@ -204,10 +216,35 @@ process_data_to_graph <- function(file_path, min_weight = 50) {
   return(graph)
 }
 
-# Usage example
-file_path <- "data/clicknov20.tsv"
-test_network <- process_data_to_graph(file_path)
+# Get the 25 networks that I need
+net_clicknov19 <- process_data_to_graph("data/clicknov19.tsv")
+net_clickdec19 <- process_data_to_graph("data/clickdec19.tsv")
+net_clickjan20 <- process_data_to_graph("data/clickjan20.tsv")
+net_clickfeb20 <- process_data_to_graph("data/clickfeb20.tsv")
+net_clickmar20 <- process_data_to_graph("data/clickmar20.tsv")
+net_clickapr20 <- process_data_to_graph("data/clickapr20.tsv")
+net_clickmay20 <- process_data_to_graph("data/clickmay20.tsv")
+net_clickjun20 <- process_data_to_graph("data/clickjun20.tsv")
+net_clickjul20 <- process_data_to_graph("data/clickjul20.tsv")
+net_clickaug20 <- process_data_to_graph("data/clickaug20.tsv")
+net_clicksep20 <- process_data_to_graph("data/clicksep20.tsv")
+net_clickoct20 <- process_data_to_graph("data/clickoct20.tsv")
+net_clicknov20 <- process_data_to_graph("data/clicknov20.tsv")
+net_clickdec20 <- process_data_to_graph("data/clickdec20.tsv")
+net_clickjan21 <- process_data_to_graph("data/clickjan21.tsv")
+net_clickfeb21 <- process_data_to_graph("data/clickfeb21.tsv")
+net_clickmar21 <- process_data_to_graph("data/clickmar21.tsv")
+net_clickapr21 <- process_data_to_graph("data/clickapr21.tsv")
+net_clickmay21 <- process_data_to_graph("data/clickmay21.tsv")
+net_clickjun21 <- process_data_to_graph("data/clickjun21.tsv")
+net_clickjul21 <- process_data_to_graph("data/clickjul21.tsv")
+net_clickaug21 <- process_data_to_graph("data/clickaug21.tsv")
+net_clicksep21 <- process_data_to_graph("data/clicksep21.tsv")
+net_clickoct21 <- process_data_to_graph("data/clickoct21.tsv")
+net_clicknov21 <- process_data_to_graph("data/clicknov21.tsv")
 ```
+
+
 
 ```{r}
 # Convert vertex names to lowercase
@@ -269,7 +306,33 @@ assign_party_affiliation <- function(graph, clean_repub_titles, clean_dem_titles
   return(graph)
 }
 
-graph <- assign_party_affiliation(graph, clean_repub_titles, clean_dem_titles)
+# assign party affiliations to all networks
+net_clicknov19 <- assign_party_affiliation(net_clicknov19, clean_repub_titles, clean_dem_titles)
+net_clickdec19 <- assign_party_affiliation(net_clickdec19, clean_repub_titles, clean_dem_titles)
+net_clickjan20 <- assign_party_affiliation(net_clickjan20, clean_repub_titles, clean_dem_titles)
+net_clickfeb20 <- assign_party_affiliation(net_clickfeb20, clean_repub_titles, clean_dem_titles)
+net_clickmar20 <- assign_party_affiliation(net_clickmar20, clean_repub_titles, clean_dem_titles)
+net_clickapr20 <- assign_party_affiliation(net_clickapr20, clean_repub_titles, clean_dem_titles)
+net_clickmay20 <- assign_party_affiliation(net_clickmay20, clean_repub_titles, clean_dem_titles)
+net_clickjun20 <- assign_party_affiliation(net_clickjun20, clean_repub_titles, clean_dem_titles)
+net_clickjul20 <- assign_party_affiliation(net_clickjul20, clean_repub_titles, clean_dem_titles)
+net_clickaug20 <- assign_party_affiliation(net_clickaug20, clean_repub_titles, clean_dem_titles)
+net_clicksep20 <- assign_party_affiliation(net_clicksep20, clean_repub_titles, clean_dem_titles)
+net_clickoct20 <- assign_party_affiliation(net_clickoct20, clean_repub_titles, clean_dem_titles)
+net_clicknov20 <- assign_party_affiliation(net_clicknov20, clean_repub_titles, clean_dem_titles)
+net_clickdec20 <- assign_party_affiliation(net_clickdec20, clean_repub_titles, clean_dem_titles)
+net_clickjan21 <- assign_party_affiliation(net_clickjan21, clean_repub_titles, clean_dem_titles)
+net_clickfeb21 <- assign_party_affiliation(net_clickfeb21, clean_repub_titles, clean_dem_titles)
+net_clickmar21 <- assign_party_affiliation(net_clickmar21, clean_repub_titles, clean_dem_titles)
+net_clickapr21 <- assign_party_affiliation(net_clickapr21, clean_repub_titles, clean_dem_titles)
+net_clickmay21 <- assign_party_affiliation(net_clickmay21, clean_repub_titles, clean_dem_titles)
+net_clickjun21 <- assign_party_affiliation(net_clickjun21, clean_repub_titles, clean_dem_titles)
+net_clickjul21 <- assign_party_affiliation(net_clickjul21, clean_repub_titles, clean_dem_titles)
+net_clickaug21 <- assign_party_affiliation(net_clickaug21, clean_repub_titles, clean_dem_titles)
+net_clicksep21 <- assign_party_affiliation(net_clicksep21, clean_repub_titles, clean_dem_titles)
+net_clickoct21 <- assign_party_affiliation(net_clickoct21, clean_repub_titles, clean_dem_titles)
+net_clicknov21 <- assign_party_affiliation(net_clicknov21, clean_repub_titles, clean_dem_titles)
+
 ```
 
 remove all except the ones that have a connection to relevant pages
@@ -352,10 +415,34 @@ clean_graph <- function(graph) {
   return(cleaned_graph)
 }
 
-# Usage example
-graph <- net_clicknov20_test  # Replace this with your actual graph object
-cleaned_graph <- clean_graph(graph)
+# clean all the networks
+net_clicknov19 <- clean_graph(net_clicknov19)
+net_clickdec19 <- clean_graph(net_clickdec19)
+net_clickjan20 <- clean_graph(net_clickjan20)
+net_clickfeb20 <- clean_graph(net_clickfeb20)
+net_clickmar20 <- clean_graph(net_clickmar20)
+net_clickapr20 <- clean_graph(net_clickapr20)
+net_clickmay20 <- clean_graph(net_clickmay20)
+net_clickjun20 <- clean_graph(net_clickjun20)
+net_clickjul20 <- clean_graph(net_clickjul20)
+net_clickaug20 <- clean_graph(net_clickaug20)
+net_clicksep20 <- clean_graph(net_clicksep20)
+net_clickoct20 <- clean_graph(net_clickoct20)
+net_clicknov20 <- clean_graph(net_clicknov20)
+net_clickdec20 <- clean_graph(net_clickdec20)
+net_clickjan21 <- clean_graph(net_clickjan21)
+net_clickfeb21 <- clean_graph(net_clickfeb21)
+net_clickmar21 <- clean_graph(net_clickmar21)
+net_clickapr21 <- clean_graph(net_clickapr21)
+net_clickmay21 <- clean_graph(net_clickmay21)
+net_clickjun21 <- clean_graph(net_clickjun21)
+net_clickjul21 <- clean_graph(net_clickjul21)
+net_clickaug21 <- clean_graph(net_clickaug21)
+net_clicksep21 <- clean_graph(net_clicksep21)
+net_clickoct21 <- clean_graph(net_clickoct21)
+net_clicknov21 <- clean_graph(net_clicknov21)
 ```
+
 
 ```{r}
 update_graph_with_affiliations <- function(graph) {
@@ -388,9 +475,15 @@ update_graph_with_affiliations <- function(graph) {
   return(graph)
 }
 
-# Usage example
-graph <- net_clicknov20_cleaned  # Replace this with your actual graph object
-updated_graph <- update_graph_with_affiliations(graph)
+# update graphs august to march
+net_clickaug20 <- update_graph_with_affiliations(net_clickaug20)
+net_clicksep20 <- update_graph_with_affiliations(net_clicksep20)
+net_clickoct20 <- update_graph_with_affiliations(net_clickoct20)
+net_clicknov20 <- update_graph_with_affiliations(net_clicknov20)
+net_clickdec20 <- update_graph_with_affiliations(net_clickdec20)
+net_clickjan21 <- update_graph_with_affiliations(net_clickjan21)
+net_clickfeb21 <- update_graph_with_affiliations(net_clickfeb21)
+net_clickmar21 <- update_graph_with_affiliations(net_clickmar21)
 ```
 
 
@@ -505,10 +598,140 @@ analyze_graph <- function(graph) {
   ))
 }
 
-# Usage example
-graph <- net_clicknov20_cleaned  # Replace this with your actual graph object
+# analyse networks from august to march
+results_aug20 <- analyze_graph(net_clickaug20)
+results_sep20 <- analyze_graph(net_clicksep20)
+results_oct20 <- analyze_graph(net_clickoct20)
+results_nov20 <- analyze_graph(net_clicknov20)
+results_dec20 <- analyze_graph(net_clickdec20)
+results_jan21 <- analyze_graph(net_clickjan21)
+results_feb21 <- analyze_graph(net_clickfeb21)
+results_mar21 <- analyze_graph(net_clickmar21)
 
-results <- analyze_graph(graph)
+# compare results
+
+# plot reciprocity
+reciprocity_values <- c(
+  results_aug20$reciprocity,
+  results_sep20$reciprocity,
+  results_oct20$reciprocity,
+  results_nov20$reciprocity,
+  results_dec20$reciprocity,
+  results_jan21$reciprocity,
+  results_feb21$reciprocity,
+  results_mar21$reciprocity
+)
+# scatterplot
+plot(
+  x = 1:8,
+  y = reciprocity_values,
+  xlab = "Network",
+  ylab = "Reciprocity",
+  main = "Reciprocity of Networks from August 2020 to March 2021",
+  type = "b"
+)
+
+# plot assortativity
+assortativity_values <- c(
+  results_aug20$assortativity,
+  results_sep20$assortativity,
+  results_oct20$assortativity,
+  results_nov20$assortativity,
+  results_dec20$assortativity,
+  results_jan21$assortativity,
+  results_feb21$assortativity,
+  results_mar21$assortativity
+)
+# scatterplot
+plot(
+  x = 1:8,
+  y = assortativity_values,
+  xlab = "Network",
+  ylab = "Assortativity",
+  main = "Assortativity of Networks from August 2020 to March 2021",
+  type = "b"
+)
+
+# mean out degree
+mean_degree_values <- c(
+  results_aug20$mean_degree_out,
+  results_sep20$mean_degree_out,
+  results_oct20$mean_degree_out,
+  results_nov20$mean_degree_out,
+  results_dec20$mean_degree_out,
+  results_jan21$mean_degree_out,
+  results_feb21$mean_degree_out,
+  results_mar21$mean_degree_out
+)
+# scatterplot
+plot(
+  x = 1:8,
+  y = mean_degree_values,
+  xlab = "Network",
+  ylab = "Mean Out Degree",
+  main = "Mean Out Degree of Networks from August 2020 to March 2021",
+  type = "b"
+)
+
+# comparing the num_affiliation values using bar plots
+num_affiliation_values <- rbind(
+  c(
+    results_aug20$num_republican,
+    results_sep20$num_republican,
+    results_oct20$num_republican,
+    results_nov20$num_republican,
+    results_dec20$num_republican,
+    results_jan21$num_republican,
+    results_feb21$num_republican,
+    results_mar21$num_republican
+  ),
+  c(
+    results_aug20$num_democrat,
+    results_sep20$num_democrat,
+    results_oct20$num_democrat,
+    results_nov20$num_democrat,
+    results_dec20$num_democrat,
+    results_jan21$num_democrat,
+    results_feb21$num_democrat,
+    results_mar21$num_democrat
+  ),
+  c(
+    results_aug20$num_politics,
+    results_sep20$num_politics,
+    results_oct20$num_politics,
+    results_nov20$num_politics,
+    results_dec20$num_politics,
+    results_jan21$num_politics,
+    results_feb21$num_politics,
+    results_mar21$num_politics
+  ),
+  c(
+    results_aug20$num_other,
+    results_sep20$num_other,
+    results_oct20$num_other,
+    results_nov20$num_other,
+    results_dec20$num_other,
+    results_jan21$num_other,
+    results_feb21$num_other,
+    results_mar21$num_other
+  )
+)
+
+# create bar plots
+barplot(
+  num_affiliation_values,
+  beside = TRUE,
+  col = c("red", "blue", "green", "gray"),
+  names.arg = c("Aug20", "Sep20", "Oct20", "Nov20", "Dec20", "Jan21", "Feb21", "Mar21"),
+  legend.text = c("Republican", "Democrat", "Politics", "Other"),
+  args.legend = list(x = "topright", bty = "n", inset = c(0, -0.1))
+)
+
+summary(net_clicknov20)
+
+summary(net_clickjan21)
+
+summary(net_clickdec20)
 ```
 
 
@@ -519,6 +742,7 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
   current_node <- V(graph)$name[current_node]
   partition_switch <- FALSE
   n_steps <- 0
+  n_steps_trapped <- 0
   
   # Perform the random walk
   for (i in 1:steps) {
@@ -528,17 +752,35 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
     
     # If there are no neighbors, return or break depending on the "stuck" parameter
     if (length(node_neighbors) == 0) {
+      if (n_steps == 0) { # if first node was already an "isolate" (no outgoing edges)
+        # return NA
+        return(NA)
+      }
       # node_neighbors <- neighbors(graph, current_node, mode = "all")
       # print name of node neighbours for testing
-      return(NA)
+      n_steps_trapped <- n_steps
+      n_steps <- 15
+      return(c(current_node, n_steps, n_steps_trapped))
     }
 
     # Choose a random neighbor weighted by the edge weights
     node_neighbor <- V(graph)$name[node_neighbors]
+    
     edge_weights <- sapply(node_neighbor, function(neighbor) {
       edge_index <- get.edge.ids(graph, c(current_node, neighbor))
       E(graph)[edge_index]$weight
     })
+    
+    if (class(edge_weights) == "list") {
+      # remove NULL values
+      # edge_weights <- edge_weights[!sapply(edge_weights, is.null)]
+      # remove NA values
+      # edge_weights <- edge_weights[!is.na(edge_weights)]
+      # convert to numeric
+      # edge_weights <- unlist(edge_weights)
+      # edge_weights <- as.numeric(edge_weights)
+      return(NA)
+    }
     
     # Calculate sum of edge weights
     sum_weights <- sum(edge_weights)
@@ -578,20 +820,32 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
     }
   }
   if (partition_switch == FALSE) {
-    n_steps <- n_steps + 1
+    n_steps <- 20
   }
+  # get party affiliation of final node
+  final_node_party <- V(graph)$party[current_node_index]
   # Return the final node reached by the random walk
-  return(c(current_node, n_steps))
+  return(c(current_node, n_steps, n_steps_trapped))
 }
 
-# now to turn it into a loop - I want to run this 100 times and then take the average number of steps it takes to get to the opposite partition
+output <- random_party_walk(net_clicknov20, 900, 10, E(net_clicknov20)$weight, "Democrat", mode = "out", stuck = "return")
+final_node <- output[1]
+steps_taken <- as.numeric(output[2])
+n_steps_trapped <- as.numeric(output[3])
+
 
 analyze_party_walk <- function(graph, party, iterations = 50, steps = 10) {
   n_trapped <- 0
   steps_needed <- vector(mode = "list", length = iterations)
+  trapped_steps <- list()
   n_part_shift <- 0
+  n_other <- 0
+  n_politics <- 0
+  n_republican <- 0
+  n_democrat <- 0
   
   for (i in 1:iterations) {
+    n_steps_trapped <- 0
     cat("\r", i, flush = TRUE)
     party_vertices <- which(V(graph)$party == party)
     start_node <- sample(party_vertices, 1)
@@ -599,29 +853,150 @@ analyze_party_walk <- function(graph, party, iterations = 50, steps = 10) {
     output <- random_party_walk(
       graph, start_node, steps = steps, weights = E(graph)$weight, party_type = party, mode = "out", stuck = "return"
     )
+
+    print(output)
     
-    if (any(is.na(output))) {
-      n_trapped <- n_trapped + 1
+    if (all(is.na(output))) {
       next
     }
     
     final_node <- output[1]
     steps_taken <- as.numeric(output[2])
+    n_steps_trapped <- as.numeric(output[3])
+    
+    if (n_steps_trapped > 0) {
+      n_trapped <- n_trapped + 1
+      trapped_steps[[length(trapped_steps) + 1]] <- n_steps_trapped
+    }
+    
+    
     final_node_index <- which(V(graph)$name == final_node)
     final_node_party <- V(graph)$party[final_node_index]
     
+    if (final_node_party == "Republican") {
+      n_republican <- n_republican + 1
+    } else if (final_node_party == "Democrat") {
+      n_democrat <- n_democrat + 1
+    } else if (final_node_party == "Politics") {
+      n_politics <- n_politics + 1
+    } else {
+      n_other <- n_other + 1
+    }
+    
     steps_needed[i] <- steps_taken
     
-    if (final_node_party != party) {
-      n_part_shift <- n_part_shift + 1
+    print(steps_needed)
+    
+    if (party == "Democrat"){
+     # Check if the current node has the desired party affiliation
+      if (final_node_party == "Republican") {
+        n_part_shift <- n_part_shift + 1
+      }
+    } else if (party == "Republican") {
+      if (final_node_party == "Democrat") {
+        n_part_shift <- n_part_shift + 1
+      }
     }
   }
   
+  # remove NULL, 15 and 20 values from steps_needed
+  steps_needed <- steps_needed[!sapply(steps_needed, is.null)]
+  steps_needed <- steps_needed[steps_needed != 15]
+  steps_needed <- steps_needed[steps_needed != 20]
+  
+  print(steps_needed)
+  
+  # get average
   steps_needed <- unlist(steps_needed)
   mean_steps <- mean(steps_needed, na.rm = TRUE)
   
-  return(list(mean_steps = mean_steps, n_part_shift = n_part_shift, n_trapped = n_trapped))
+  # get average of trapped steps
+  trapped_steps <- unlist(trapped_steps)
+  mean_trapped_steps <- mean(trapped_steps, na.rm = TRUE)
+  
+  return(list(steps = mean_steps, n_part_shift = n_part_shift, n_trapped = n_trapped, mean_steps_trapped = mean_trapped_steps, n_republican = n_republican, n_democrat = n_democrat, n_politics = n_politics, n_other = n_other))
 }
+
+# analyse party walk for networks from august to march
+results_aug20 <- analyze_party_walk(net_clickaug20, "Democrat", iterations = 100, steps = 10)
+results_sep20 <- analyze_party_walk(net_clicksep20, "Democrat", iterations = 100, steps = 10)
+results_oct20 <- analyze_party_walk(net_clickoct20, "Democrat", iterations = 100, steps = 10)
+results_nov20 <- analyze_party_walk(net_clicknov20, "Democrat", iterations = 100, steps = 10)
+results_dec20 <- analyze_party_walk(net_clickdec20, "Democrat", iterations = 100, steps = 10)
+results_jan21 <- analyze_party_walk(net_clickjan21, "Democrat", iterations = 100, steps = 10)
+results_feb21 <- analyze_party_walk(net_clickfeb21, "Democrat", iterations = 100, steps = 10)
+results_mar21 <- analyze_party_walk(net_clickmar21, "Democrat", iterations = 100, steps = 10)
+
+data_list <- list(
+  results_aug20, results_sep20, results_oct20, results_nov20, results_dec20, results_jan21, results_feb21, results_mar21)
+
 ```
 
+```{r}
+# Extracting data
+mean_steps <- sapply(data_list, function(x) x$mean_steps)
+n_part_shift <- sapply(data_list, function(x) x$n_part_shift)
+n_trapped <- sapply(data_list, function(x) x$n_trapped)
+
+# Create scatterplots
+# Load necessary library
+library(ggplot2)
+
+# Scatterplot for mean_steps
+mean_steps_df <- data.frame(Index = 1:length(mean_steps), mean_steps = mean_steps)
+ggplot(mean_steps_df, aes(x = Index, y = mean_steps)) +
+  geom_point() +
+  ggtitle("Scatterplot of mean_steps")
+
+# Scatterplot for n_part_shift
+n_part_shift_df <- data.frame(Index = 1:length(n_part_shift), n_part_shift = n_part_shift)
+ggplot(n_part_shift_df, aes(x = Index, y = n_part_shift)) +
+  geom_point() +
+  ggtitle("Scatterplot of n_part_shift")
+
+# Scatterplot for n_trapped
+n_trapped_df <- data.frame(Index = 1:length(n_trapped), n_trapped = n_trapped)
+ggplot(n_trapped_df, aes(x = Index, y = n_trapped)) +
+  geom_point() +
+  ggtitle("Scatterplot of n_trapped")
+
+```
+
+
+```{r}
+# try to run it a hundered times and take the average
+# add the rest of the nodes back in
+
+#ERGMs for edges between republican and democrat? add a time element as coefficient?
+
+#Qs for Shakeel: 
+# how feasible is it to use R on GCP? I'm not too confident in doing this in Python bc my networks class is in R...
+# also: I have a network where a) one edge (main party pages) dominates everything else and b) the rest of the network is very sparse (a lot of nodes do not have relevant neighbours). How do I deal with this?
+
+
+# fabian - depending on how big the network is, it might be too big because R keeps it in RAM (need to request RAM according to how large your dataset is)
+# rsync source destination
+# log scale for dataset then fit linear regression
+# check if igraph supports parallelisation 
+# -> paralellise over 6 cores
+# use foreach parallel package
+
+# sliding windows of 2 month series so you only analyse 2 months at a time
+
+# alternative: networkx in python 
+```
+
+
+### Meeting with Patrick
+
+Plan: 
+1. take one revision of each article from the same amount of time (Revision API gets you most recent revision to a timestamp)
+2. robustness check: for each article take a another time stamp from each month and get a dissimilarity score (hopefully this will return only noise)
+3. then see how hyperlinks changed from month to month for each article (for example grab one hyperlink (with regex maybe) and track its changes over time)
+  -> note that there are other papers who have tracked the movements of hyperlinks, orient yourself based on Lerman, Helic, Strohmaier (their work is NOT helpful here as it tunrs out)
+    -> Idea: extract lead section and infobox using regex, then extract all hyperlinks in these two sections. do these for all timestamps, then track dissimilarity scores
+    -> Other Idea: just do dissimilarity scores on the lead and infobox themselves instead of extracting hyperlinks
+  -> note that you should pay special attention to times when page views spike (e.g. election time) and see if hyperlinks changed during that time (sample more revisions during that time)
+  
+  - look at the other articles he mentioned (how readers browse Wikipedia, large scale attention shifts following COVID-19 mobility restrictions)
 
