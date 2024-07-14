@@ -12,15 +12,19 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Let's try to use the code from the assignment
 
-```{r}
+```{r load_libraries}
 library(readr)
 library(igraph)
 library(pacman)
 p_load('WikipediR', 'rvest', 'xml2')
 library(dplyr)
+library(ggplot2)
+library("httr")
+library(tidyverse)
 ```
-load category data via the WikiMedia Action API
-```{r}
+
+```{r get_pages}
+# Get pages in initial categories
 repub_pages <- pages_in_category("en", "wikipedia", categories = "Republican Party (United States)", type = "page")
 
 repub_pages2 <- pages_in_category("en", "wikipedia", categories = "Republicans (United States)", type = "page")
@@ -29,13 +33,14 @@ demo_pages <- pages_in_category("en", "wikipedia", categories = "Democratic Part
 
 demo_pages2 <- pages_in_category("en", "wikipedia", categories = "Democrats (United States)", type = "page")
 
-num_members <- length(demo_pages$query$categorymembers)
 
+# Get the number of category members
+num_members <- length(demo_pages$query$categorymembers)
 num_members2 <- length(demo_pages2$query$categorymembers)
 
-dem_titles <- c()
 
-# Iterate through each category member
+# Iterate through each category member and extract the title from the JSON response
+dem_titles <- c()
 for (i in 1:num_members) {
   dem_titles[i] <- demo_pages$query$categorymembers[[i]]$title
 }
@@ -44,12 +49,11 @@ for (i in 1:num_members2) {
   dem_titles[50 + i] <- demo_pages2$query$categorymembers[[i]]$title
 }
 
+# the same for the republican pages
 num_members_r <- length(repub_pages$query$categorymembers)
 num_members_r2 <- length(repub_pages2$query$categorymembers)
-
 repub_titles <- c()
 
-# Iterate through each category member
 for (i in 1:num_members_r) {
   repub_titles[i] <- repub_pages$query$categorymembers[[i]]$title
 }
@@ -58,12 +62,16 @@ for (i in 1:num_members_r2) {
   repub_titles[50 + i] <- repub_pages2$query$categorymembers[[i]]$title
 }
 
+# prepare function which extracts subcategories
 extract_categories <- function(category_string, depth) {
-  if (depth > 4) return(NA)  # Base case: Stop at depth 4
+  if (depth > 30) return(NA) # up to 30 levels of subcategories
   
-  subcats <- pages_in_category("en", "wikipedia", categories = category_string, type = "subcat")
+  # get the subcateogries of current category
+  subcats <- pages_in_category(
+    "en", "wikipedia", categories = category_string, type = "subcat")
   
-  num_cats <- length(subcats$query$categorymembers)
+  num_cats <- length(
+    subcats$query$categorymembers) # get number of subcategories from JSON response
   
   # Return NA if no subcategories found
   if (num_cats == 0) return(NA)
@@ -76,12 +84,13 @@ extract_categories <- function(category_string, depth) {
     cats <- c(cats, cat_title)  # Add current category title
   }
   
-  # Recursive call for ALL subcategories (up to depth 4)
+  # Recursive call for all current subcategories
   for (i in 1:num_cats) {
+    # preprocess category titles:
     current_title <- subcats$query$categorymembers[[i]]$title
     current_title <- gsub("^Category:", "", current_title)
     depth <- depth + 1
-    sub_sub_cats <- extract_categories(current_title, depth)
+    sub_sub_cats <- extract_categories(current_title, depth) # Recursive call
     cats <- c(cats, sub_sub_cats)  # Append extracted sub-subcategories
   }
   
@@ -90,16 +99,23 @@ extract_categories <- function(category_string, depth) {
   return(cats)
 }
 
-
+# Extract subcategories for the democratic categories
 demo_subcats1 <- extract_categories("Democratic Party (United States)", depth = 0)
 
 demo_subcats2 <- extract_categories("Democrats (United States)", depth = 0)
 
+# combine the two lists
 demo_subcats <- union(demo_subcats1, demo_subcats2)
 
-demo_subcats <- gsub("^Category:", "", demo_subcats)
+demo_subcats <- gsub(
+  "^Category:", "", demo_subcats) # preprocess category titles
 
-# now the same with the republican pages
+demo_subcats <- demo_subcats[!is.na(demo_subcats)] # remove NA values
+
+# write to txt file
+write.table(demo_subcats, "demo_subcats.txt", row.names = FALSE, col.names = FALSE)
+
+# same with the republican pages
 repub_subcats1 <- extract_categories("Republican Party (United States)", depth = 0)
 
 repub_subcats2 <- extract_categories("Republicans (United States)", depth = 0)
@@ -108,34 +124,38 @@ repub_subcats <- union(repub_subcats1, repub_subcats2)
 
 repub_subcats <- gsub("^Category:", "", repub_subcats)
 
-# remove NA values
-demo_subcats <- demo_subcats[!is.na(demo_subcats)]
 repub_subcats <- repub_subcats[!is.na(repub_subcats)]
 
-# from demo_subcats, remove Democrats (United States), Fictional Democrats (United States)
-demo_subcats <- demo_subcats[!demo_subcats %in% c("Fictional Democrats (United States)")]
+write.table(repub_subcats, "repub_subcats.txt", row.names = FALSE, col.names = FALSE)
 
-# from repub_subcats, remove Republican Party (United States), Fictional Republicans (United States)
+# read the subcategories from the txt files
+demo_subcats_delete <- read.table("demo_subcats_delete.txt", header = FALSE, colClasses = "character")
+repub_subcats_delete <- read.table("repub_subcats_delete.txt", header = FALSE, colClasses = "character")
 
-repub_subcats <- repub_subcats[!repub_subcats %in% c("Republican Party (United States)")]
+# delete the subcategories that are not relevant
+demo_subcats <- demo_subcats[!demo_subcats %in% demo_subcats_delete$V1]
+repub_subcats <- repub_subcats[!repub_subcats %in% repub_subcats_delete$V1]
 
+# prepare function to extract pages from subcategories
 extract_pages <- function(subcategory_list) {
   
   pages <- c()
   
   for (i in 1:length(subcategory_list)) {
+    # extract pages for current subcategory
     current_pages <- pages_in_category("en", "wikipedia", categories = subcategory_list[i], type = "page")
     current_num <- length(current_pages$query$categorymembers)
+    
     if (current_num == 0) {
-      next
+      next # if no pages found, continue with next subcategory
     }
     current_titles <- c()
-    # Iterate through each category member
+    
     for (j in 1:current_num) {
-      
+      # extract page names from JSON response:
       current_titles[j] <- current_pages$query$categorymembers[[j]]$title
     }
-    pages <- c(pages, current_titles)
+    pages <- c(pages, current_titles) 
   }
   
   Sys.sleep(1)
@@ -143,60 +163,39 @@ extract_pages <- function(subcategory_list) {
   return(pages)
 }
 
+# extract pages from the democratic subcategories
 democrat_pages <- extract_pages(demo_subcats)
 
-democrat_pages <- unique(democrat_pages)
+democrat_pages <- unique(democrat_pages) # remove duplicates
 
 missing_pages <- setdiff(dem_titles, democrat_pages) # get pages from original categories
 
-democrat_pages <- c(democrat_pages, missing_pages)
+democrat_pages <- c(democrat_pages, missing_pages) # add missing pages
 
 # repeat for republican pages
-
 republican_pages <- extract_pages(repub_subcats)
-
 republican_pages <- unique(republican_pages)
-
 missing_pages <- setdiff(repub_titles, republican_pages)
-
 republican_pages <- c(republican_pages, missing_pages)
 
 # Clean and preprocess the titles
-republican_pages <- tolower(republican_pages)
-clean_repub_titles <- gsub(" ", "_", republican_pages)
-democrat_pages <- tolower(democrat_pages)
-clean_dem_titles <- gsub(" ", "_", democrat_pages)
-# trim whitespace
+republican_pages <- gsub(" ", "_", republican_pages)
+clean_repub_titles <- tolower(republican_pages)
+democrat_pages <- gsub(" ", "_", democrat_pages)
+clean_dem_titles <- tolower(democrat_pages)
 clean_repub_titles <- trimws(clean_repub_titles)
 clean_dem_titles <- trimws(clean_dem_titles)
+
+# check which elements appear in both lists
+common_pages <- intersect(clean_repub_titles, clean_dem_titles)
+
+# save to csv
+write.csv(common_pages, "common_pages.csv", row.names = FALSE)
 ```
 
 
-
-```{r}
-process_data_to_graph <- function(file_path, min_weight = 50) {
-  # Read the data from the specified file
-  data <- read_tsv(file_path, col_names = FALSE, col_select = c(1, 2, 4))
-  
-  # Remove rows where X4 (the weight column) is less than the specified minimum weight
-  data <- data[data$X4 >= min_weight, ]
-  
-  # Rename the X4 column to "weight"
-  colnames(data)[3] <- "weight"
-  
-  # Create a graph from the data frame
-  graph <- graph_from_data_frame(data, directed = TRUE)
-  
-  # Return the graph object
-  return(graph)
-}
-```
-
-
-
-Now for the data:
-```{r}
-process_data_to_graph <- function(file_path, min_weight = 50) {
+```{r process_data}
+process_data_to_graph <- function(file_path, min_weight = 10) {
   # Read the data from the specified file
   data <- read_tsv(file_path, col_names = FALSE, col_select = c(1, 2, 4))
   
@@ -244,41 +243,7 @@ net_clickoct21 <- process_data_to_graph("data/clickoct21.tsv")
 net_clicknov21 <- process_data_to_graph("data/clicknov21.tsv")
 ```
 
-
-
-```{r}
-# Convert vertex names to lowercase
-vertex_names <- tolower(V(net_clicknov20)$name)
-vertex_names <- gsub(" ", "_", vertex_names)
-vertex_names <- trimws(vertex_names)
-
-V(net_clicknov20)$name <- tolower(V(net_clicknov20)$name)
-
-republican_pages <- which(vertex_names %in% clean_repub_titles) # get indices of republican pages
-democrat_pages <- which(vertex_names %in% clean_dem_titles)
-
-party_affiliation <- rep("Other", vcount(net_clicknov20)) # initialise party affiliation vector
-
-# Assign party affiliations
-party_affiliation[republican_pages] <- "Republican"
-party_affiliation[democrat_pages] <- "Democrat"
-
-# Add the party affiliation attribute to the network
-V(net_clicknov20)$party <- party_affiliation
-
-# Subset vertices with party affiliation "Democrat"
-# Extract the names of the Democrat vertices
-democrat_vertices <- as.character(V(net_clicknov20)$name[party_affiliation == "Democrat"])
-rep_vertices <- as.character(V(net_clicknov20)$name[party_affiliation == "Republican"])
-
-# Find vertices that match cleaned titles
-# repub_vertices <- vertex_names %in% clean_repub_titles
-# dem_vertices <- vertex_names %in% clean_dem_titles
-
-# get non-FALSE entries from both lists
-# repub_vertices <- which(repub_vertices)
-# dem_vertices <- which(dem_vertices)
-
+```{r assign_affiliations}
 assign_party_affiliation <- function(graph, clean_repub_titles, clean_dem_titles) {
   # Convert vertex names to lowercase, replace spaces with underscores, and trim whitespace
   vertex_names <- tolower(V(graph)$name)
@@ -332,50 +297,9 @@ net_clickaug21 <- assign_party_affiliation(net_clickaug21, clean_repub_titles, c
 net_clicksep21 <- assign_party_affiliation(net_clicksep21, clean_repub_titles, clean_dem_titles)
 net_clickoct21 <- assign_party_affiliation(net_clickoct21, clean_repub_titles, clean_dem_titles)
 net_clicknov21 <- assign_party_affiliation(net_clicknov21, clean_repub_titles, clean_dem_titles)
-
 ```
 
-remove all except the ones that have a connection to relevant pages
-
-```{r}
-# Find vertices with party attribute "Republican" or "Democrat"
-rep_dem_vertices <- V(net_clicknov20_test)[party %in% c("Republican", "Democrat")]
-
-neighbors_rep_dem <- integer(0)
-
-# Iterate through each vertex in rep_dem_vertices
-for (vertex_id in rep_dem_vertices) {
-  # Get neighbors of the current vertex
-  vertex_neighbors <- neighbors(net_clicknov20_test, vertex_id)
-  
-  # Add neighbors to neighbors_rep_dem
-  neighbors_rep_dem <- union(neighbors_rep_dem, vertex_neighbors)
-}
-
-# Remove duplicates from neighbors_rep_dem
-neighbors_rep_dem <- unique(neighbors_rep_dem)
-
-neighbors_rep_dem <- V(net_clicknov20_test)[neighbors_rep_dem]
-
-# Combine Republican/Democrat vertices and their neighbors
-vertices_to_keep <- union(rep_dem_vertices, neighbors_rep_dem)
-
-# identify vertices not in vertices_to_keep
-vertices_to_delete <- V(net_clicknov20_test)[!V(net_clicknov20_test) %in% vertices_to_keep]
-
-# Delete vertices
-net_clicknov20_cleaned <- delete_vertices(net_clicknov20_test, vertices_to_delete)
-
-# get names of other vertices
-other_vertices <- V(net_clicknov20_cleaned)$name[party_affiliation == "Other"]
-
-other_vertices <- unique(other_vertices)
-
-# remove isolates
- net_clicknov20_cleaned <- delete_vertices(
-   net_clicknov20_cleaned, which(degree(net_clicknov20_cleaned) == 0))
- 
-# Define the function
+```{r clean_graph}
 clean_graph <- function(graph) {
   # Find vertices with party attribute "Republican" or "Democrat"
   rep_dem_vertices <- V(graph)[party %in% c("Republican", "Democrat")]
@@ -404,6 +328,10 @@ clean_graph <- function(graph) {
 
   # Delete vertices
   cleaned_graph <- delete_vertices(graph, vertices_to_delete)
+  
+  # check number of republican and democrat nodes
+  print(sum(V(cleaned_graph)$party == "Republican"))
+  print(sum(V(cleaned_graph)$party == "Democrat"))
 
   # Remove isolates
   cleaned_graph <- delete_vertices(cleaned_graph, which(degree(cleaned_graph) == 0))
@@ -443,14 +371,47 @@ net_clickoct21 <- clean_graph(net_clickoct21)
 net_clicknov21 <- clean_graph(net_clicknov21)
 ```
 
-
 ```{r}
+# get all neighbors of the republican and democrat nodes
+extract_neighbors <- function(graph) {
+  # Find vertices with party attribute "Republican" or "Democrat"
+  rep_dem_vertices <- V(graph)[party %in% c("Republican", "Democrat")]
+
+  neighbors_rep_dem <- integer(0)
+
+  # Iterate through each vertex in rep_dem_vertices
+  for (vertex in rep_dem_vertices) {
+    # Get neighbors of the current vertex
+    vertex_neighbors <- neighbors(graph, vertex, mode = "out")
+    
+    # Add neighbors to neighbors_rep_dem
+    neighbors_rep_dem <- union(neighbors_rep_dem, vertex_neighbors)
+  }
+
+  # Remove duplicates from neighbors_rep_dem
+  neighbors_rep_dem <- unique(neighbors_rep_dem)
+
+  neighbors_rep_dem <- V(graph)[neighbors_rep_dem]
+  
+  # get the vertex names
+  
+  neighbors_rep_dem <- neighbors_rep_dem$name
+
+  return(neighbors_rep_dem)
+}
+
+neighbors_nov <- extract_neighbors(net_clicknov20)
+
+# save as csv file
+write.csv(neighbors_nov, "data/neighbors.csv", row.names = FALSE)
+```
+
+
+```{r update_affiliations}
 update_graph_with_affiliations <- function(graph) {
-  # Hardcoded path to the neighbor affiliation file
-  affiliation_file_path <- "data/neighbor_affiliation.csv"
   
   # Read the neighbor affiliations from the specified file
-  neighbor_affiliations <- read_csv(affiliation_file_path, col_names = TRUE)
+  neighbor_affiliations <- read_csv("data/neighbor_categories.csv", col_names = TRUE)
   
   # Clean the 'Element' column by removing leading and trailing double quotes
   neighbor_affiliations <- neighbor_affiliations %>%
@@ -463,7 +424,11 @@ update_graph_with_affiliations <- function(graph) {
     
     # Find the corresponding node in the graph and update the "party" attribute
     node_index <- which(V(graph)$name == element)
+    # if party attribute of the node is already "Republican" or "Democrat", do not update it
     if (length(node_index) > 0) {
+      if (any(V(graph)$party[node_index] %in% c("Republican", "Democrat"))) {
+        next
+      }
       V(graph)$party[node_index] <- category
     }
   }
@@ -475,7 +440,16 @@ update_graph_with_affiliations <- function(graph) {
   return(graph)
 }
 
-# update graphs august to march
+# update graphs
+net_clicknov19 <- update_graph_with_affiliations(net_clicknov19)
+net_clickdec19 <- update_graph_with_affiliations(net_clickdec19)
+net_clickjan20 <- update_graph_with_affiliations(net_clickjan20)
+net_clickfeb20 <- update_graph_with_affiliations(net_clickfeb20)
+net_clickmar20 <- update_graph_with_affiliations(net_clickmar20)
+net_clickapr20 <- update_graph_with_affiliations(net_clickapr20)
+net_clickmay20 <- update_graph_with_affiliations(net_clickmay20)
+net_clickjun20 <- update_graph_with_affiliations(net_clickjun20)
+net_clickjul20 <- update_graph_with_affiliations(net_clickjul20)
 net_clickaug20 <- update_graph_with_affiliations(net_clickaug20)
 net_clicksep20 <- update_graph_with_affiliations(net_clicksep20)
 net_clickoct20 <- update_graph_with_affiliations(net_clickoct20)
@@ -484,17 +458,119 @@ net_clickdec20 <- update_graph_with_affiliations(net_clickdec20)
 net_clickjan21 <- update_graph_with_affiliations(net_clickjan21)
 net_clickfeb21 <- update_graph_with_affiliations(net_clickfeb21)
 net_clickmar21 <- update_graph_with_affiliations(net_clickmar21)
+net_clickapr21 <- update_graph_with_affiliations(net_clickapr21)
+net_clickmay21 <- update_graph_with_affiliations(net_clickmay21)
+net_clickjun21 <- update_graph_with_affiliations(net_clickjun21)
+net_clickjul21 <- update_graph_with_affiliations(net_clickjul21)
+net_clickaug21 <- update_graph_with_affiliations(net_clickaug21)
+net_clicksep21 <- update_graph_with_affiliations(net_clicksep21)
+net_clickoct21 <- update_graph_with_affiliations(net_clickoct21)
+net_clicknov21 <- update_graph_with_affiliations(net_clicknov21)
+```
+
+```{r}
+# save RData image
+save.image("data/click_networks2.RData")
+load("data/click_networks2.RData")
+```
+
+```{r}
+affiliations <- read_csv("data/common_pages.csv", col_names = TRUE)
+
+update_double_party_classes <- function(graph, affiliations) {
+  
+  # Update the graph with the neighbor affiliations
+  for(i in 1:nrow(affiliations)) {
+    element <- affiliations$Element[i]
+    category <- affiliations$Category[i]
+    
+    # Find the corresponding node in the graph and update the "party" attribute
+    node_index <- which(V(graph)$name == element)
+    
+    if (length(node_index) > 0) {
+      V(graph)$party[node_index] <- category
+    }
+  }
+  
+  # Return the updated graph
+  return(graph)
+}
+
+net_clicknov19 <- update_double_party_classes(net_clicknov19, affiliations)
+net_clickdec19 <- update_double_party_classes(net_clickdec19, affiliations)
+net_clickjan20 <- update_double_party_classes(net_clickjan20, affiliations)
+net_clickfeb20 <- update_double_party_classes(net_clickfeb20, affiliations)
+net_clickmar20 <- update_double_party_classes(net_clickmar20, affiliations)
+net_clickapr20 <- update_double_party_classes(net_clickapr20, affiliations)
+net_clickmay20 <- update_double_party_classes(net_clickmay20, affiliations)
+net_clickjun20 <- update_double_party_classes(net_clickjun20, affiliations)
+net_clickjul20 <- update_double_party_classes(net_clickjul20, affiliations)
+net_clickaug20 <- update_double_party_classes(net_clickaug20, affiliations)
+net_clicksep20 <- update_double_party_classes(net_clicksep20, affiliations)
+net_clickoct20 <- update_double_party_classes(net_clickoct20, affiliations)
+net_clicknov20 <- update_double_party_classes(net_clicknov20, affiliations)
+net_clickdec20 <- update_double_party_classes(net_clickdec20, affiliations)
+net_clickjan21 <- update_double_party_classes(net_clickjan21, affiliations)
+net_clickfeb21 <- update_double_party_classes(net_clickfeb21, affiliations)
+net_clickmar21 <- update_double_party_classes(net_clickmar21, affiliations)
+net_clickapr21 <- update_double_party_classes(net_clickapr21, affiliations)
+net_clickmay21 <- update_double_party_classes(net_clickmay21, affiliations)
+net_clickjun21 <- update_double_party_classes(net_clickjun21, affiliations)
+net_clickjul21 <- update_double_party_classes(net_clickjul21, affiliations)
+net_clickaug21 <- update_double_party_classes(net_clickaug21, affiliations)
+net_clicksep21 <- update_double_party_classes(net_clicksep21, affiliations)
+net_clickoct21 <- update_double_party_classes(net_clickoct21, affiliations)
+net_clicknov21 <- update_double_party_classes(net_clicknov21, affiliations)
+
+# change the party attribute of the following elements to "Politics": "2004_united_states_presidential_election", "timeline_of_russian_interference_in_the_2016_united_states_elections", "1984_united_states_presidential_election", "1988_united_states_presidential_election", "1980_united_states_presidential_election", "1976_united_states_presidential_election", "1964_united_states_presidential_election", "faithless_electors_in_the_2016_united_states_presidential_election", "1860_united_states_presidential_election", "1864_united_states_presidential_election", "1972_united_states_presidential_election", "1936_united_states_presidential_election", "1944_united_states_presidential_election", "1940_united_states_presidential_election", "1932_united_states_presidential_election", "1928_united_states_presidential_election", "1920_united_states_presidential_election"
+
+# create data frame with the elements and their new party attribute
+new_affiliations <- data.frame(Element = c("2004_united_states_presidential_election", "timeline_of_russian_interference_in_the_2016_united_states_elections", "1984_united_states_presidential_election", "1988_united_states_presidential_election", "1980_united_states_presidential_election", "1976_united_states_presidential_election", "1964_united_states_presidential_election", "faithless_electors_in_the_2016_united_states_presidential_election", "1860_united_states_presidential_election", "1864_united_states_presidential_election", "1972_united_states_presidential_election", "1936_united_states_presidential_election", "1944_united_states_presidential_election", "1940_united_states_presidential_election", "1932_united_states_presidential_election", "1928_united_states_presidential_election", "1920_united_states_presidential_election", "iraq_war", "gulf_war"),
+  Category = "Politics")
+
+# extend the data frame to change the following party attribute to "Other": "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert"
+
+new_affiliations <- rbind(new_affiliations, data.frame(Element = c("call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady"), Category = "Other"))
+
+new_affiliations <- rbind(new_affiliations, data.frame(Element = "hillary_clinton", Category = "Democrat"))
+
+net_clicknov19 <- update_double_party_classes(net_clicknov19, new_affiliations)
+net_clickdec19 <- update_double_party_classes(net_clickdec19, new_affiliations)
+net_clickjan20 <- update_double_party_classes(net_clickjan20, new_affiliations)
+net_clickfeb20 <- update_double_party_classes(net_clickfeb20, new_affiliations)
+net_clickmar20 <- update_double_party_classes(net_clickmar20, new_affiliations)
+net_clickapr20 <- update_double_party_classes(net_clickapr20, new_affiliations)
+net_clickmay20 <- update_double_party_classes(net_clickmay20, new_affiliations)
+net_clickjun20 <- update_double_party_classes(net_clickjun20, new_affiliations)
+net_clickjul20 <- update_double_party_classes(net_clickjul20, new_affiliations)
+net_clickaug20 <- update_double_party_classes(net_clickaug20, new_affiliations)
+net_clicksep20 <- update_double_party_classes(net_clicksep20, new_affiliations)
+net_clickoct20 <- update_double_party_classes(net_clickoct20, new_affiliations)
+net_clicknov20 <- update_double_party_classes(net_clicknov20, new_affiliations)
+net_clickdec20 <- update_double_party_classes(net_clickdec20, new_affiliations)
+net_clickjan21 <- update_double_party_classes(net_clickjan21, new_affiliations)
+net_clickfeb21 <- update_double_party_classes(net_clickfeb21, new_affiliations)
+net_clickmar21 <- update_double_party_classes(net_clickmar21, new_affiliations)
+net_clickapr21 <- update_double_party_classes(net_clickapr21, new_affiliations)
+net_clickmay21 <- update_double_party_classes(net_clickmay21, new_affiliations)
+net_clickjun21 <- update_double_party_classes(net_clickjun21, new_affiliations)
+net_clickjul21 <- update_double_party_classes(net_clickjul21, new_affiliations)
+net_clickaug21 <- update_double_party_classes(net_clickaug21, new_affiliations)
+net_clicksep21 <- update_double_party_classes(net_clicksep21, new_affiliations)
+net_clickoct21 <- update_double_party_classes(net_clickoct21, new_affiliations)
+net_clicknov21 <- update_double_party_classes(net_clicknov21, new_affiliations)
 ```
 
 
-```{r descriptieve_analysis}
-# Descriptive analysis
+```{r ccdf}
+# Calculate the strength (weighted degree) of each node
+d <- strength(net_clicknov20_filtered, mode = "all", weights = E(net_clicknov20_filtered)$weight)
 
-# average weighted degree
-(mean_degree_out <- mean(strength(net_clicknov20_cleaned, mode = "all", weights = E(net_clicknov20_cleaned)$X4)))
+# Calculate the frequency of each degree
+degree_freq <- table(d)
 
-# plot degree distribution as CCDF
-prob <- degree_distribution(net_clicknov20_cleaned, mode = "all")
+# Convert to a probability distribution
+prob <- degree_freq / sum(degree_freq)
 
 # Remove indegree=0 (the first probability index is removed)
 prob <- prob[-1] 
@@ -502,8 +578,6 @@ prob <- prob[-1]
 # Remove indegrees with proportion=0
 nonzero_pos <- which(prob!=0)
 prob <- prob[nonzero_pos]
-
-d <- degree(net_clicknov20_cleaned, mode='all')
 
 # Create a vector including all non-zero-probability indegrees
 degree <- 1:max(d)
@@ -514,59 +588,25 @@ for (i in 1:length(prob)) {
   ccdf[i] = sum( prob[ seq(i, length(prob)) ] )
 }
 plot <- plot(ccdf ~ degree, xlab='Degree d', ylab='Complementary CDF P(X>=d)', log='xy', col='blue')
+```
+```{r}
+# Assuming node_names is a vector of node names corresponding to the degrees
+node_names <- V(net_clicknov20)$name  # Extract node names from the network
+degree_names <- degree(net_clicknov20, mode = 'all')
 
-# reciprocity
-reciprocity(net_clicknov20_cleaned)
+# Filter node names to only include those with non-zero probabilities
+filtered_node_names <- node_names[nonzero_pos]
 
-# number of vertices with all possible party affiliations
-(sum(V(net_clicknov20_cleaned)$party == "Republican"))
-(sum(V(net_clicknov20_cleaned)$party == "Democrat"))
-(sum(V(net_clicknov20_cleaned)$party == "Other"))
+# Plot CCDF
+plot(degree, ccdf, xlab = 'Degree d', ylab = 'Complementary CDF P(X>=d)', log = 'xy', col = 'blue', pch = 16)
 
-# Convert party attribute to numeric
-V(net_clicknov20_cleaned)$party_num <- as.numeric(factor(V(net_clicknov20_cleaned)$party, levels = c("Democrat", "Republican", "Politics", "Other")))
+# Annotate plot with node names
+text(degree, ccdf, labels = filtered_node_names, pos = 4, cex = 0.7, col = "red")
 
-# Compute assortativity
-assortativity(net_clicknov20_cleaned, V(net_clicknov20_cleaned)$party_num, directed = TRUE)
-# not a good measure bc of the high inequality between number of nodes in the three party affiliations
-
-### try weighted assortativity instead??
-
-# Get the adjacency matrix
-adj_matrix <- as.matrix(get.adjacency(net_clicknov20_cleaned, sparse = FALSE))
-
-# Get the party numbers for each vertex
-party_numbers <- V(net_clicknov20_cleaned)$party_num
-
-# Create an empty mixing matrix
-mixing_matrix <- matrix(0, nrow = length(unique(party_numbers)), ncol = length(unique(party_numbers)))
-
-# Fill in the mixing matrix
-for (i in 1:length(party_numbers)) {
-  for (j in 1:length(party_numbers)) {
-    mixing_matrix[party_numbers[i], party_numbers[j]] <- mixing_matrix[party_numbers[i], party_numbers[j]] + adj_matrix[i, j]
-  }
-}
-
-# Print the mixing matrix
-print(mixing_matrix)
-# you can see that the mixing matrix is also not very informative because of the high inequality between the number of nodes in the three party affiliations - of course connections between republican and democrat pages are rare but they are also the rarest categories!
-
-# modularity
-communities <- cluster_walktrap(net_clicknov20_cleaned, weights = net_clicknov20_cleaned$X4)
-modularity_score <- modularity(communities)
-print(modularity_score)
-
-num_communities <- 3  # replace with your desired number of communities
-membership <- cutat(communities, no = num_communities)
-
-# Get the party affiliations
-party_affiliations <- V(net_clicknov20_cleaned)$party
-
-# Create a cross-tabulation
-table <- table(Community = membership, Party = party_affiliations)
+```
 
 
+```{r descriptive_analysis}
 analyze_graph <- function(graph) {
   # Calculate average weighted degree
   mean_degree_out <- mean(strength(graph, mode = "all", weights = E(graph)$weight))
@@ -583,9 +623,6 @@ analyze_graph <- function(graph) {
   # Convert party attribute to numeric
   V(graph)$party_num <- as.numeric(factor(V(graph)$party, levels = c("Democrat", "Republican", "Politics", "Other")))
   
-  # Compute assortativity
-  graph_assortativity <- assortativity(graph, V(graph)$party_num, directed = TRUE)
-  
   # Return the results as a list
   return(list(
     mean_degree_out = mean_degree_out,
@@ -593,12 +630,20 @@ analyze_graph <- function(graph) {
     num_republican = num_republican,
     num_democrat = num_democrat,
     num_politics = num_politics,
-    num_other = num_other,
-    assortativity = graph_assortativity
+    num_other = num_other
   ))
 }
 
-# analyse networks from august to march
+# analyse networks
+results_nov19 <- analyze_graph(net_clicknov19)
+results_dec19 <- analyze_graph(net_clickdec19)
+results_jan20 <- analyze_graph(net_clickjan20)
+results_feb20 <- analyze_graph(net_clickfeb20)
+results_mar20 <- analyze_graph(net_clickmar20)
+results_apr20 <- analyze_graph(net_clickapr20)
+results_may20 <- analyze_graph(net_clickmay20)
+results_jun20 <- analyze_graph(net_clickjun20)
+results_jul20 <- analyze_graph(net_clickjul20)
 results_aug20 <- analyze_graph(net_clickaug20)
 results_sep20 <- analyze_graph(net_clicksep20)
 results_oct20 <- analyze_graph(net_clickoct20)
@@ -607,139 +652,866 @@ results_dec20 <- analyze_graph(net_clickdec20)
 results_jan21 <- analyze_graph(net_clickjan21)
 results_feb21 <- analyze_graph(net_clickfeb21)
 results_mar21 <- analyze_graph(net_clickmar21)
+results_apr21 <- analyze_graph(net_clickapr21)
+results_may21 <- analyze_graph(net_clickmay21)
+results_jun21 <- analyze_graph(net_clickjun21)
+results_jul21 <- analyze_graph(net_clickjul21)
+results_aug21 <- analyze_graph(net_clickaug21)
+results_sep21 <- analyze_graph(net_clicksep21)
+results_oct21 <- analyze_graph(net_clickoct21)
+results_nov21 <- analyze_graph(net_clicknov21)
+```
 
-# compare results
+```{r}
+number_pages_republican <- data.frame(
+  Month = c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021"),
+  Pages = c(results_nov19$num_republican, results_dec19$num_republican, results_jan20$num_republican, results_feb20$num_republican, results_mar20$num_republican, results_apr20$num_republican, results_may20$num_republican, results_jun20$num_republican, results_jul20$num_republican, results_aug20$num_republican, results_sep20$num_republican, results_oct20$num_republican, results_nov20$num_republican, results_dec20$num_republican, results_jan21$num_republican, results_feb21$num_republican, results_mar21$num_republican, results_apr21$num_republican, results_may21$num_republican, results_jun21$num_republican, results_jul21$num_republican, results_aug21$num_republican, results_sep21$num_republican, results_oct21$num_republican, results_nov21$num_republican))
 
-# plot reciprocity
-reciprocity_values <- c(
-  results_aug20$reciprocity,
-  results_sep20$reciprocity,
-  results_oct20$reciprocity,
-  results_nov20$reciprocity,
-  results_dec20$reciprocity,
-  results_jan21$reciprocity,
-  results_feb21$reciprocity,
-  results_mar21$reciprocity
-)
-# scatterplot
-plot(
-  x = 1:8,
-  y = reciprocity_values,
-  xlab = "Network",
-  ylab = "Reciprocity",
-  main = "Reciprocity of Networks from August 2020 to March 2021",
-  type = "b"
-)
+number_pages_republican$Month <- factor(number_pages_republican$Month, levels = number_pages_republican$Month)
 
-# plot assortativity
-assortativity_values <- c(
-  results_aug20$assortativity,
-  results_sep20$assortativity,
-  results_oct20$assortativity,
-  results_nov20$assortativity,
-  results_dec20$assortativity,
-  results_jan21$assortativity,
-  results_feb21$assortativity,
-  results_mar21$assortativity
-)
-# scatterplot
-plot(
-  x = 1:8,
-  y = assortativity_values,
-  xlab = "Network",
-  ylab = "Assortativity",
-  main = "Assortativity of Networks from August 2020 to March 2021",
-  type = "b"
+number_pages_democrat <- data.frame(
+  Month = c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021"),
+  Pages = c(results_nov19$num_democrat, results_dec19$num_democrat, results_jan20$num_democrat, results_feb20$num_democrat, results_mar20$num_democrat, results_apr20$num_democrat, results_may20$num_democrat, results_jun20$num_democrat, results_jul20$num_democrat, results_aug20$num_democrat, results_sep20$num_democrat, results_oct20$num_democrat, results_nov20$num_democrat, results_dec20$num_democrat, results_jan21$num_democrat, results_feb21$num_democrat, results_mar21$num_democrat, results_apr21$num_democrat, results_may21$num_democrat, results_jun21$num_democrat, results_jul21$num_democrat, results_aug21$num_democrat, results_sep21$num_democrat, results_oct21$num_democrat, results_nov21$num_democrat))
+
+number_pages_democrat$Month <- factor(number_pages_democrat$Month, levels = number_pages_democrat$Month)
+
+combined_data <- bind_rows(
+  mutate(number_pages_republican, Party = "Republican"),
+  mutate(number_pages_democrat, Party = "Democrat")
 )
 
-# mean out degree
-mean_degree_values <- c(
-  results_aug20$mean_degree_out,
-  results_sep20$mean_degree_out,
-  results_oct20$mean_degree_out,
-  results_nov20$mean_degree_out,
-  results_dec20$mean_degree_out,
-  results_jan21$mean_degree_out,
-  results_feb21$mean_degree_out,
-  results_mar21$mean_degree_out
-)
-# scatterplot
-plot(
-  x = 1:8,
-  y = mean_degree_values,
-  xlab = "Network",
-  ylab = "Mean Out Degree",
-  main = "Mean Out Degree of Networks from August 2020 to March 2021",
-  type = "b"
-)
+# Reshape the data for plotting
+long_data <- combined_data %>%
+  pivot_longer(cols = Pages, names_to = "Metric", values_to = "Count")
 
-# comparing the num_affiliation values using bar plots
-num_affiliation_values <- rbind(
-  c(
-    results_aug20$num_republican,
-    results_sep20$num_republican,
-    results_oct20$num_republican,
-    results_nov20$num_republican,
-    results_dec20$num_republican,
-    results_jan21$num_republican,
-    results_feb21$num_republican,
-    results_mar21$num_republican
-  ),
-  c(
-    results_aug20$num_democrat,
-    results_sep20$num_democrat,
-    results_oct20$num_democrat,
-    results_nov20$num_democrat,
-    results_dec20$num_democrat,
-    results_jan21$num_democrat,
-    results_feb21$num_democrat,
-    results_mar21$num_democrat
-  ),
-  c(
-    results_aug20$num_politics,
-    results_sep20$num_politics,
-    results_oct20$num_politics,
-    results_nov20$num_politics,
-    results_dec20$num_politics,
-    results_jan21$num_politics,
-    results_feb21$num_politics,
-    results_mar21$num_politics
-  ),
-  c(
-    results_aug20$num_other,
-    results_sep20$num_other,
-    results_oct20$num_other,
-    results_nov20$num_other,
-    results_dec20$num_other,
-    results_jan21$num_other,
-    results_feb21$num_other,
-    results_mar21$num_other
-  )
+# Create the plot
+ggplot(long_data, aes(x = Month, y = Count, fill = Party)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Number of Republican and Democrat Pages Over Time",
+       x = "Month",
+       y = "Number of Pages") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Create data frames for each category
+results <- list(
+  nov19 = results_nov19, dec19 = results_dec19, jan20 = results_jan20, feb20 = results_feb20, mar20 = results_mar20, 
+  apr20 = results_apr20, may20 = results_may20, jun20 = results_jun20, jul20 = results_jul20, aug20 = results_aug20, 
+  sep20 = results_sep20, oct20 = results_oct20, nov20 = results_nov20, dec20 = results_dec20, jan21 = results_jan21, 
+  feb21 = results_feb21, mar21 = results_mar21, apr21 = results_apr21, may21 = results_may21, jun21 = results_jun21, 
+  jul21 = results_jul21, aug21 = results_aug21, sep21 = results_sep21, oct21 = results_oct21, nov21 = results_nov21
 )
 
-# create bar plots
-barplot(
-  num_affiliation_values,
-  beside = TRUE,
-  col = c("red", "blue", "green", "gray"),
-  names.arg = c("Aug20", "Sep20", "Oct20", "Nov20", "Dec20", "Jan21", "Feb21", "Mar21"),
-  legend.text = c("Republican", "Democrat", "Politics", "Other"),
-  args.legend = list(x = "topright", bty = "n", inset = c(0, -0.1))
+# Define the months
+months <- c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", 
+            "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "October 2020", 
+            "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", 
+            "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021")
+
+# Initialize an empty data frame
+total_pages <- data.frame(
+  Month = months,
+  TotalPages = sapply(results, function(res) {
+    res$num_republican + res$num_democrat
+  })
 )
 
-summary(net_clicknov20)
+total_pages$Month <- factor(total_pages$Month, levels = total_pages$Month)
 
-summary(net_clickjan21)
+# Create the plot
+ggplot(total_pages, aes(x = Month, y = TotalPages)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = TotalPages), vjust = -0.3, color = "black", size = 3) +
+  labs(title = "Total Number of Pages Over Time",
+       x = "Month",
+       y = "Total Number of Pages") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
-summary(net_clickdec20)
+```
+```{r}
+total_rep_dem_pages <- data.frame(
+  Month = months,
+  TotalRepDemPages = sapply(results, function(res) {
+    res$num_republican + res$num_democrat
+  })
+)
+
+# Calculate the average number of Republican and Democrat pages per month
+mean(total_rep_dem_pages$TotalRepDemPages)
 ```
 
 
 ```{r}
+net_clicknov20_test <- net_clicknov20
+
+net_clicknov20_test <- delete_vertices(net_clicknov20, which(V(net_clicknov20)$party == "Other"))
+
+net_clicknov20_test <- delete_vertices(net_clicknov20_test, which(V(net_clicknov20_test)$party == "Politics"))
+
+# export edgelist with weights as csv
+# Extract the edgelist
+edgelist <- as_tibble(get.edgelist(net_clicknov20_test))
+
+# Extract the edge weights
+weights <- E(net_clicknov20_test)$weight
+
+# Combine edgelist and weights into a data frame
+edgelist_with_weights <- edgelist %>%
+  mutate(weight = weights)
+
+# rename columns
+colnames(edgelist_with_weights) <- c("Source", "Target", "Weight")
+
+# Write to CSV file
+write.csv(edgelist_with_weights, "data/edgelist.csv", row.names = FALSE)
+
+# export node attributes as csv
+# Extract all vertex attributes
+node_attributes <- as.data.frame(get.vertex.attribute(net_clicknov20_test))
+
+# Combine node IDs and attributes into a data frame
+node_data <- as_tibble(cbind(node_attributes))
+
+# rename columns
+colnames(node_data) <- c("Id", "Label")
+
+# for every Republican label, add as hex values Color attribute red, for every Democrat label, add Color attribute blue, for every Politics label, add Color attribute green, for every Other label, add Color attribute grey
+node_data$color <- ifelse(node_data$Label == "Republican", "#FF0000", ifelse(node_data$Label == "Democrat", "#0000FF", "#808080"))
+
+# Write to CSV file
+write.csv(node_data, "data/node_attributes.csv", row.names = FALSE)
+```
+
+```{r}
+net_clicknov20_boundary <- net_clicknov20_test
+
+# remove all nodes that do not have an edge to the opposing party
+nodes_with_opposing_edges <- c()
+for (v in V(net_clicknov20_boundary)) {
+  party_v <- V(net_clicknov20_boundary)[v]$party
+  neighbors <- neighbors(net_clicknov20_boundary, v)
+  for (n in neighbors) {
+    if (V(net_clicknov20_boundary)[n]$party != party_v) {
+      nodes_with_opposing_edges <- c(nodes_with_opposing_edges, v)
+      break
+    }
+  }
+}
+
+# Step 2: Create the filtered network including only the identified nodes
+nodes_with_opposing_edges <- unique(nodes_with_opposing_edges) # Remove duplicates
+filtered_g <- induced_subgraph(net_clicknov20_boundary, nodes_with_opposing_edges)
+
+edgelist <- as_tibble(get.edgelist(filtered_g))
+
+# Extract the edge weights
+weights <- E(filtered_g)$weight
+
+# Combine edgelist and weights into a data frame
+edgelist_with_weights <- edgelist %>%
+  mutate(weight = weights)
+
+# rename columns
+colnames(edgelist_with_weights) <- c("Source", "Target", "Weight")
+
+# Write to CSV file
+write.csv(edgelist_with_weights, "data/edgelist.csv", row.names = FALSE)
+
+# export node attributes as csv
+# Extract all vertex attributes
+node_attributes <- as.data.frame(get.vertex.attribute(filtered_g))
+
+# Combine node IDs and attributes into a data frame
+node_data <- as_tibble(cbind(node_attributes))
+
+# rename columns
+colnames(node_data) <- c("Id", "Label")
+
+# for every Republican label, add as hex values Color attribute red, for every Democrat label, add Color attribute blue, for every Politics label, add Color attribute green, for every Other label, add Color attribute grey
+node_data$color <- ifelse(node_data$Label == "Republican", "#FF0000", ifelse(node_data$Label == "Democrat", "#0000FF", "#808080"))
+
+# Write to CSV file
+write.csv(node_data, "data/node_attributes.csv", row.names = FALSE)
+```
+
+
+
+```{r modularity}
+# remove vertices with other or politics party affiliation
+net_clicknov19_filtered <- delete_vertices(net_clicknov19, which(V(net_clicknov19)$party == "Other" | V(net_clicknov19)$party == "Politics"))
+
+net_clickdec19_filtered <- delete_vertices(net_clickdec19, which(V(net_clickdec19)$party == "Other" | V(net_clickdec19)$party == "Politics"))
+
+net_clickjan20_filtered <- delete_vertices(net_clickjan20, which(V(net_clickjan20)$party == "Other" | V(net_clickjan20)$party == "Politics"))
+
+net_clickfeb20_filtered <- delete_vertices(net_clickfeb20, which(V(net_clickfeb20)$party == "Other" | V(net_clickfeb20)$party == "Politics"))
+
+net_clickmar20_filtered <- delete_vertices(net_clickmar20, which(V(net_clickmar20)$party == "Other" | V(net_clickmar20)$party == "Politics"))
+
+net_clickapr20_filtered <- delete_vertices(net_clickapr20, which(V(net_clickapr20)$party == "Other" | V(net_clickapr20)$party == "Politics"))
+
+net_clickmay20_filtered <- delete_vertices(net_clickmay20, which(V(net_clickmay20)$party == "Other" | V(net_clickmay20)$party == "Politics"))
+
+net_clickjun20_filtered <- delete_vertices(net_clickjun20, which(V(net_clickjun20)$party == "Other" | V(net_clickjun20)$party == "Politics"))
+
+net_clickjul20_filtered <- delete_vertices(net_clickjul20, which(V(net_clickjul20)$party == "Other" | V(net_clickjul20)$party == "Politics"))
+
+net_clickaug20_filtered <- delete_vertices(net_clickaug20, which(V(net_clickaug20)$party == "Other" | V(net_clickaug20)$party == "Politics"))
+
+net_clicksep20_filtered <- delete_vertices(net_clicksep20, which(V(net_clicksep20)$party == "Other" | V(net_clicksep20)$party == "Politics"))
+
+net_clicknov20_filtered <- delete_vertices(net_clicknov20, which(V(net_clicknov20)$party == "Other" | V(net_clicknov20)$party == "Politics"))
+
+net_clickoct20_filtered <- delete_vertices(net_clickoct20, which(V(net_clickoct20)$party == "Other" | V(net_clickoct20)$party == "Politics"))
+
+net_clickdec20_filtered <- delete_vertices(net_clickdec20, which(V(net_clickdec20)$party == "Other" | V(net_clickdec20)$party == "Politics"))
+
+net_clickjan21_filtered <- delete_vertices(net_clickjan21, which(V(net_clickjan21)$party == "Other" | V(net_clickjan21)$party == "Politics"))
+
+net_clickfeb21_filtered <- delete_vertices(net_clickfeb21, which(V(net_clickfeb21)$party == "Other" | V(net_clickfeb21)$party == "Politics"))
+
+net_clickmar21_filtered <- delete_vertices(net_clickmar21, which(V(net_clickmar21)$party == "Other" | V(net_clickmar21)$party == "Politics"))
+
+net_clickapr21_filtered <- delete_vertices(net_clickapr21, which(V(net_clickapr21)$party == "Other" | V(net_clickapr21)$party == "Politics"))
+
+net_clickmay21_filtered <- delete_vertices(net_clickmay21, which(V(net_clickmay21)$party == "Other" | V(net_clickmay21)$party == "Politics"))
+
+net_clickjun21_filtered <- delete_vertices(net_clickjun21, which(V(net_clickjun21)$party == "Other" | V(net_clickjun21)$party == "Politics"))
+
+net_clickjul21_filtered <- delete_vertices(net_clickjul21, which(V(net_clickjul21)$party == "Other" | V(net_clickjul21)$party == "Politics"))
+
+net_clickaug21_filtered <- delete_vertices(net_clickaug21, which(V(net_clickaug21)$party == "Other" | V(net_clickaug21)$party == "Politics"))
+
+net_clicksep21_filtered <- delete_vertices(net_clicksep21, which(V(net_clicksep21)$party == "Other" | V(net_clicksep21)$party == "Politics"))
+
+net_clickoct21_filtered <- delete_vertices(net_clickoct21, which(V(net_clickoct21)$party == "Other" | V(net_clickoct21)$party == "Politics"))
+
+net_clicknov21_filtered <- delete_vertices(net_clicknov21, which(V(net_clicknov21)$party == "Other" | V(net_clicknov21)$party == "Politics"))
+
+# calculate modularity for november '19
+membership_nov19 <- V(net_clicknov19_filtered)$party
+membership_nov19 <- as.numeric(factor(membership_nov19, levels = c("Democrat", "Republican")))
+communities_nov19 <- modularity(net_clicknov19_filtered, membership_nov19, weights = net_clicknov19_filtered$weight)
+
+# calculate modularity for december '19
+membership_dec19 <- V(net_clickdec19_filtered)$party
+membership_dec19 <- as.numeric(factor(membership_dec19, levels = c("Democrat", "Republican")))
+communities_dec19 <- modularity(net_clickdec19_filtered, membership_dec19, weights = net_clickdec19_filtered$weight)
+
+# calculate modularity for january '20
+membership_jan20 <- V(net_clickjan20_filtered)$party
+membership_jan20 <- as.numeric(factor(membership_jan20, levels = c("Democrat", "Republican")))
+communities_jan20 <- modularity(net_clickjan20_filtered, membership_jan20, weights = net_clickjan20_filtered$weight)
+
+# calculate modularity for february '20
+membership_feb20 <- V(net_clickfeb20_filtered)$party
+membership_feb20 <- as.numeric(factor(membership_feb20, levels = c("Democrat", "Republican")))
+communities_feb20 <- modularity(net_clickfeb20_filtered, membership_feb20, weights = net_clickfeb20_filtered$weight)
+
+# calculate modularity for march '20
+membership_mar20 <- V(net_clickmar20_filtered)$party
+membership_mar20 <- as.numeric(factor(membership_mar20, levels = c("Democrat", "Republican")))
+communities_mar20 <- modularity(net_clickmar20_filtered, membership_mar20, weights = net_clickmar20_filtered$weight)
+
+# calculate modularity for april '20
+membership_apr20 <- V(net_clickapr20_filtered)$party
+membership_apr20 <- as.numeric(factor(membership_apr20, levels = c("Democrat", "Republican")))
+communities_apr20 <- modularity(net_clickapr20_filtered, membership_apr20, weights = net_clickapr20_filtered$weight)
+
+# calculate modularity for may '20
+membership_may20 <- V(net_clickmay20_filtered)$party
+membership_may20 <- as.numeric(factor(membership_may20, levels = c("Democrat", "Republican")))
+communities_may20 <- modularity(net_clickmay20_filtered, membership_may20, weights = net_clickmay20_filtered$weight)
+
+# calculate modularity for june '20
+membership_jun20 <- V(net_clickjun20_filtered)$party
+membership_jun20 <- as.numeric(factor(membership_jun20, levels = c("Democrat", "Republican")))
+communities_jun20 <- modularity(net_clickjun20_filtered, membership_jun20, weights = net_clickjun20_filtered$weight)
+
+# calculate modularity for july '20
+membership_jul20 <- V(net_clickjul20_filtered)$party
+membership_jul20 <- as.numeric(factor(membership_jul20, levels = c("Democrat", "Republican")))
+communities_jul20 <- modularity(net_clickjul20_filtered, membership_jul20, weights = net_clickjul20_filtered$weight)
+
+# calculate modularity for august '20
+membership_aug20 <- V(net_clickaug20_filtered)$party
+membership_aug20 <- as.numeric(factor(membership_aug20, levels = c("Democrat", "Republican")))
+communities_aug20 <- modularity(net_clickaug20_filtered, membership_aug20, weights = net_clickaug20_filtered$weight)
+
+# calculate modularity for september '20
+membership_sep20 <- V(net_clicksep20_filtered)$party
+membership_sep20 <- as.numeric(factor(membership_sep20, levels = c("Democrat", "Republican")))
+communities_sep20 <- modularity(net_clicksep20_filtered, membership_sep20, weights = net_clicksep20_filtered$weight)
+
+# calculate modularity for october '20
+membership_oct20 <- V(net_clickoct20_filtered)$party
+membership_oct20 <- as.numeric(factor(membership_oct20, levels = c("Democrat", "Republican")))
+communities_oct20 <- modularity(net_clickoct20_filtered, membership_oct20, weights = net_clickoct20_filtered$weight)
+
+# calculate modularity for november '20
+membership_nov20 <- V(net_clicknov20_filtered)$party
+membership_nov20 <- as.numeric(factor(membership_nov20, levels = c("Democrat", "Republican")))
+communities_nov20 <- modularity(net_clicknov20_filtered, membership_nov20, weights = net_clicknov20_filtered$weight)
+
+# calculate modularity for december '20
+membership_dec20 <- V(net_clickdec20_filtered)$party
+membership_dec20 <- as.numeric(factor(membership_dec20, levels = c("Democrat", "Republican")))
+communities_dec20 <- modularity(net_clickdec20_filtered, membership_dec20, weights = net_clickdec20_filtered$weight)
+
+# calculate modularity for january '21
+membership_jan21 <- V(net_clickjan21_filtered)$party
+membership_jan21 <- as.numeric(factor(membership_jan21, levels = c("Democrat", "Republican")))
+communities_jan21 <- modularity(net_clickjan21_filtered, membership_jan21, weights = net_clickjan21_filtered$weight)
+
+# calculate modularity for february '21
+membership_feb21 <- V(net_clickfeb21_filtered)$party
+membership_feb21 <- as.numeric(factor(membership_feb21, levels = c("Democrat", "Republican")))
+communities_feb21 <- modularity(net_clickfeb21_filtered, membership_feb21, weights = net_clickfeb21_filtered$weight)
+
+# calculate modularity for march '21
+membership_mar21 <- V(net_clickmar21_filtered)$party
+membership_mar21 <- as.numeric(factor(membership_mar21, levels = c("Democrat", "Republican")))
+communities_mar21 <- modularity(net_clickmar21_filtered, membership_mar21, weights = net_clickmar21_filtered$weight)
+
+# calculate modularity for april '21
+membership_apr21 <- V(net_clickapr21_filtered)$party
+membership_apr21 <- as.numeric(factor(membership_apr21, levels = c("Democrat", "Republican")))
+communities_apr21 <- modularity(net_clickapr21_filtered, membership_apr21, weights = net_clickapr21_filtered$weight)
+
+# calculate modularity for may '21
+membership_may21 <- V(net_clickmay21_filtered)$party
+membership_may21 <- as.numeric(factor(membership_may21, levels = c("Democrat", "Republican")))
+communities_may21 <- modularity(net_clickmay21_filtered, membership_may21, weights = net_clickmay21_filtered$weight)
+
+# calculate modularity for june '21
+membership_jun21 <- V(net_clickjun21_filtered)$party
+membership_jun21 <- as.numeric(factor(membership_jun21, levels = c("Democrat", "Republican")))
+communities_jun21 <- modularity(net_clickjun21_filtered, membership_jun21, weights = net_clickjun21_filtered$weight)
+
+# calculate modularity for july '21
+membership_jul21 <- V(net_clickjul21_filtered)$party
+membership_jul21 <- as.numeric(factor(membership_jul21, levels = c("Democrat", "Republican")))
+communities_jul21 <- modularity(net_clickjul21_filtered, membership_jul21, weights = net_clickjul21_filtered$weight)
+
+# calculate modularity for august '21
+membership_aug21 <- V(net_clickaug21_filtered)$party
+membership_aug21 <- as.numeric(factor(membership_aug21, levels = c("Democrat", "Republican")))
+communities_aug21 <- modularity(net_clickaug21_filtered, membership_aug21, weights = net_clickaug21_filtered$weight)
+
+# calculate modularity for september '21
+membership_sep21 <- V(net_clicksep21_filtered)$party
+membership_sep21 <- as.numeric(factor(membership_sep21, levels = c("Democrat", "Republican")))
+communities_sep21 <- modularity(net_clicksep21_filtered, membership_sep21, weights = net_clicksep21_filtered$weight)
+
+# calculate modularity for october '21
+membership_oct21 <- V(net_clickoct21_filtered)$party
+membership_oct21 <- as.numeric(factor(membership_oct21, levels = c("Democrat", "Republican")))
+communities_oct21 <- modularity(net_clickoct21_filtered, membership_oct21, weights = net_clickoct21_filtered$weight)
+
+# calculate modularity for november '21
+membership_nov21 <- V(net_clicknov21_filtered)$party
+membership_nov21 <- as.numeric(factor(membership_nov21, levels = c("Democrat", "Republican")))
+communities_nov21 <- modularity(net_clicknov21_filtered, membership_nov21, weights = net_clicknov21_filtered$weight)
+
+# get average modularity for the first six  months
+average_modularity <- mean(c(communities_nov19, communities_dec19, communities_jan20, communities_feb20, communities_mar20, communities_apr20))
+
+# calculate the percentage differences for this measurement for each month 
+percentage_difference <- function(observations, baseline) {
+  return(((observations - baseline) / baseline) * 100)
+}
+```
+
+```{r modularity_visualisation}
+modularity_scores <- data.frame(
+  Month = c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "November 2021"),
+  Modularity = c(
+    communities_nov19, communities_dec19, communities_jan20, communities_feb20, communities_mar20, communities_apr20, communities_may20, communities_jun20, communities_jul20, communities_aug20, communities_sep20, communities_nov20, communities_dec20, communities_jan21, communities_feb21, communities_mar21, communities_apr21, communities_may21, communities_jun21, communities_jul21, communities_aug21, communities_sep21, communities_nov21))
+
+modularity_scores$Month <- factor(modularity_scores$Month, levels = modularity_scores$Month)
+
+average_modularity <- mean(modularity_scores$Modularity, na.rm = TRUE)
+
+ggplot(modularity_scores, aes(x = Month, y = Modularity)) +
+  geom_point(size = 1) +  # Add points
+  geom_line(aes(group = 1), color = "blue") +  # Connect points with lines
+  geom_hline(yintercept = average_modularity, linetype = "solid", color = "red", alpha = 0.6) + 
+  geom_vline(xintercept = 12, linetype = "dashed", color = "purple", alpha = 0.4) +
+  geom_vline(xintercept = 14, linetype = "dashed", color = "purple", alpha = 0.4) +
+  annotate("text", x = 12, y = 0.1, label = "Election", vjust = 0, color = "purple") +
+  annotate("text", x = 14, y = 0.1, label = "Insurgence", vjust = -2, color = "purple") +
+  labs(x = "Month", y = "Modularity", title = "Modularity Scores from September 2020 to February 2021") +
+  theme_minimal() +  # Minimal theme
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(limits = c(0, 0.3))
+```
+
+
+```{r boundary_polarisation}
+# Define the function to compute Spearman correlation of rank degrees and cross-boundary connections
+
+# with the amendment of using the edge weights, what counts is the weights and not the number of connections, so one connection with a lot of people clicking is more important than 10 connections with few people clicking
+
+calculate_spearman_correlation <- function(graph, community) {
+  # Calculate the degrees of each node in the graph
+  degrees <- strength(graph, weights = E(graph)$weight)
+  
+  # Define a nested function to compute cross-boundary connections
+  cross_boundary_connections <- function(graph, community) {
+    sapply(V(graph), function(node) {
+      neighbors <- neighbors(graph, node)
+      edge_ids <- E(graph)[.from(node) & .to(neighbors)]
+      # Sum the instances where neighboring nodes are in different communities
+      sum(E(
+        graph)$weight[edge_ids][community[neighbors] != community[node]])
+    })
+  }
+  
+  # Calculate cross-boundary connections for the given graph and community membership
+  db <- cross_boundary_connections(graph, community)
+  
+  
+  
+  # Rank the degrees in descending order
+  rank_r <- rank(-degrees)
+  
+  # Rank the cross-boundary connections in descending order
+  rank_rb <- rank(-db)
+
+  
+  # Calculate the Spearman correlation coefficient between the two ranks
+  rho <- cor(rank_r, rank_rb, method = "spearman")
+  
+  # Return the Spearman correlation coefficient
+  return(rho)
+}
+
+bp_nov19 <- calculate_spearman_correlation(net_clicknov19_filtered, membership_nov19)
+
+bp_dec19 <- calculate_spearman_correlation(net_clickdec19_filtered, membership_dec19)
+
+bp_jan20 <- calculate_spearman_correlation(net_clickjan20_filtered, membership_jan20)
+
+bp_feb20 <- calculate_spearman_correlation(net_clickfeb20_filtered, membership_feb20)
+
+bp_mar20 <- calculate_spearman_correlation(net_clickmar20_filtered, membership_mar20)
+
+bp_apr20 <- calculate_spearman_correlation(net_clickapr20_filtered, membership_apr20)
+
+bp_may20 <- calculate_spearman_correlation(net_clickmay20_filtered, membership_may20)
+
+bp_jun20 <- calculate_spearman_correlation(net_clickjun20_filtered, membership_jun20)
+
+bp_jul20 <- calculate_spearman_correlation(net_clickjul20_filtered, membership_jul20)
+
+bp_aug20 <- calculate_spearman_correlation(net_clickaug20_filtered, membership_aug20)
+
+bp_sep20 <- calculate_spearman_correlation(net_clicksep20_filtered, membership_sep20)
+
+bp_oct20 <- calculate_spearman_correlation(net_clickoct20_filtered, membership_oct20)
+
+bp_nov20 <- calculate_spearman_correlation(net_clicknov20_filtered, membership_nov20)
+
+bp_dec20 <- calculate_spearman_correlation(net_clickdec20_filtered, membership_dec20)
+
+bp_jan21 <- calculate_spearman_correlation(net_clickjan21_filtered, membership_jan21)
+
+bp_feb21 <- calculate_spearman_correlation(net_clickfeb21_filtered, membership_feb21)
+
+bp_mar21 <- calculate_spearman_correlation(net_clickmar21_filtered, membership_mar21)
+
+bp_apr21 <- calculate_spearman_correlation(net_clickapr21_filtered, membership_apr21)
+
+bp_may21 <- calculate_spearman_correlation(net_clickmay21_filtered, membership_may21)
+
+bp_jun21 <- calculate_spearman_correlation(net_clickjun21_filtered, membership_jun21)
+
+bp_jul21 <- calculate_spearman_correlation(net_clickjul21_filtered, membership_jul21)
+
+bp_aug21 <- calculate_spearman_correlation(net_clickaug21_filtered, membership_aug21)
+
+bp_sep21 <- calculate_spearman_correlation(net_clicksep21_filtered, membership_sep21)
+
+bp_oct21 <- calculate_spearman_correlation(net_clickoct21_filtered, membership_oct21)
+
+bp_nov21 <- calculate_spearman_correlation(net_clicknov21_filtered, membership_nov21)
+```
+
+```{r}
+save.image("data/click_networks_bp.RData")
+```
+
+
+```{r random_networks}
+# generate random networks for each month
+random_net_nov19 <- sample_degseq(out.deg = degree(net_clicknov19_filtered, mode='out'), in.deg = degree(net_clicknov19_filtered, mode='in'), method = "simple")
+
+random_net_dec19 <- sample_degseq(out.deg = degree(net_clickdec19_filtered, mode='out'), in.deg = degree(net_clickdec19_filtered, mode='in'), method = "simple")
+
+random_net_jan20 <- sample_degseq(out.deg = degree(net_clickjan20_filtered, mode='out'), in.deg = degree(net_clickjan20_filtered, mode='in'), method = "simple")
+
+random_net_feb20 <- sample_degseq(out.deg = degree(net_clickfeb20_filtered, mode='out'), in.deg = degree(net_clickfeb20_filtered, mode='in'), method = "simple")
+
+random_net_mar20 <- sample_degseq(out.deg = degree(net_clickmar20_filtered, mode='out'), in.deg = degree(net_clickmar20_filtered, mode='in'), method = "simple")
+
+random_net_apr20 <- sample_degseq(out.deg = degree(net_clickapr20_filtered, mode='out'), in.deg = degree(net_clickapr20_filtered, mode='in'), method = "simple")
+
+random_net_may20 <- sample_degseq(out.deg = degree(net_clickmay20_filtered, mode='out'), in.deg = degree(net_clickmay20_filtered, mode='in'), method = "simple")
+
+random_net_jun20 <- sample_degseq(out.deg = degree(net_clickjun20_filtered, mode='out'), in.deg = degree(net_clickjun20_filtered, mode='in'), method = "simple")
+
+random_net_jul20 <- sample_degseq(out.deg = degree(net_clickjul20_filtered, mode='out'), in.deg = degree(net_clickjul20_filtered, mode='in'), method = "simple")
+
+random_net_aug20 <- sample_degseq(out.deg = degree(net_clickaug20_filtered, mode='out'), in.deg = degree(net_clickaug20_filtered, mode='in'), method = "simple")
+
+random_net_sep20 <- sample_degseq(out.deg = degree(net_clicksep20_filtered, mode='out'), in.deg = degree(net_clicksep20_filtered, mode='in'), method = "simple")
+
+random_net_oct20 <- sample_degseq(out.deg = degree(net_clickoct20_filtered, mode='out'), in.deg = degree(net_clickoct20_filtered, mode='in'), method = "simple")
+
+random_net_nov20 <- sample_degseq(out.deg = degree(net_clicknov20_filtered, mode='out'), in.deg = degree(net_clicknov20_filtered, mode='in'), method = "simple")
+
+random_net_dec20 <- sample_degseq(out.deg = degree(net_clickdec20_filtered, mode='out'), in.deg = degree(net_clickdec20_filtered, mode='in'), method = "simple")
+
+random_net_jan21 <- sample_degseq(out.deg = degree(net_clickjan21_filtered, mode='out'), in.deg = degree(net_clickjan21_filtered, mode='in'), method = "simple")
+
+random_net_feb21 <- sample_degseq(out.deg = degree(net_clickfeb21_filtered, mode='out'), in.deg = degree(net_clickfeb21_filtered, mode='in'), method = "simple")
+
+random_net_mar21 <- sample_degseq(out.deg = degree(net_clickmar21_filtered, mode='out'), in.deg = degree(net_clickmar21_filtered, mode='in'), method = "simple")
+
+random_net_apr21 <- sample_degseq(out.deg = degree(net_clickapr21_filtered, mode='out'), in.deg = degree(net_clickapr21_filtered, mode='in'), method = "simple")
+
+random_net_may21 <- sample_degseq(out.deg = degree(net_clickmay21_filtered, mode='out'), in.deg = degree(net_clickmay21_filtered, mode='in'), method = "simple")
+
+random_net_jun21 <- sample_degseq(out.deg = degree(net_clickjun21_filtered, mode='out'), in.deg = degree(net_clickjun21_filtered, mode='in'), method = "simple")
+
+random_net_jul21 <- sample_degseq(out.deg = degree(net_clickjul21_filtered, mode='out'), in.deg = degree(net_clickjul21_filtered, mode='in'), method = "simple")
+
+random_net_aug21 <- sample_degseq(out.deg = degree(net_clickaug21_filtered, mode='out'), in.deg = degree(net_clickaug21_filtered, mode='in'), method = "simple")
+
+random_net_sep21 <- sample_degseq(out.deg = degree(net_clicksep21_filtered, mode='out'), in.deg = degree(net_clicksep21_filtered, mode='in'), method = "simple")
+
+random_net_oct21 <- sample_degseq(out.deg = degree(net_clickoct21_filtered, mode='out'), in.deg = degree(net_clickoct21_filtered, mode='in'), method = "simple")
+
+random_net_nov21 <- sample_degseq(out.deg = degree(net_clicknov21_filtered, mode='out'), in.deg = degree(net_clicknov21_filtered, mode='in'), method = "simple")
+
+assign_attributes_and_calculate_correlation <- function(random_net, original_net) {
+  # Assign the 'party' attribute from the original network to the random network
+  party_attr <- vertex_attr(original_net, name = "party")
+  random_net <- set_vertex_attr(random_net, name = "party", value = party_attr)
+  
+  # Assign the 'weight' attribute from the original network to the random network
+  weight_attr <- edge_attr(original_net, name = "weight")
+  random_net <- set_edge_attr(random_net, name = "weight", value = weight_attr)
+  
+  # Use the 'party' attribute as the community membership
+  random_membership <- V(random_net)$party
+  
+  # Calculate Spearman correlation
+  calculate_spearman_correlation(random_net, random_membership)
+}
+
+bp_random_nov19 <- assign_attributes_and_calculate_correlation(random_net_nov19, net_clicknov19_filtered)
+bp_random_dec19 <- assign_attributes_and_calculate_correlation(random_net_dec19, net_clickdec19_filtered)
+bp_random_jan20 <- assign_attributes_and_calculate_correlation(random_net_jan20, net_clickjan20_filtered)
+bp_random_feb20 <- assign_attributes_and_calculate_correlation(random_net_feb20, net_clickfeb20_filtered)
+bp_random_mar20 <- assign_attributes_and_calculate_correlation(random_net_mar20, net_clickmar20_filtered)
+bp_random_apr20 <- assign_attributes_and_calculate_correlation(random_net_apr20, net_clickapr20_filtered)
+bp_random_may20 <- assign_attributes_and_calculate_correlation(random_net_may20, net_clickmay20_filtered)
+bp_random_jun20 <- assign_attributes_and_calculate_correlation(random_net_jun20, net_clickjun20_filtered)
+bp_random_jul20 <- assign_attributes_and_calculate_correlation(random_net_jul20, net_clickjul20_filtered)
+bp_random_aug20 <- assign_attributes_and_calculate_correlation(random_net_aug20, net_clickaug20_filtered)
+bp_random_sep20 <- assign_attributes_and_calculate_correlation(random_net_sep20, net_clicksep20_filtered)
+bp_random_oct20 <- assign_attributes_and_calculate_correlation(random_net_oct20, net_clickoct20_filtered)
+bp_random_nov20 <- assign_attributes_and_calculate_correlation(random_net_nov20, net_clicknov20_filtered)
+bp_random_dec20 <- assign_attributes_and_calculate_correlation(random_net_dec20, net_clickdec20_filtered)
+bp_random_jan21 <- assign_attributes_and_calculate_correlation(random_net_jan21, net_clickjan21_filtered)
+bp_random_feb21 <- assign_attributes_and_calculate_correlation(random_net_feb21, net_clickfeb21_filtered)
+bp_random_mar21 <- assign_attributes_and_calculate_correlation(random_net_mar21, net_clickmar21_filtered)
+bp_random_apr21 <- assign_attributes_and_calculate_correlation(random_net_apr21, net_clickapr21_filtered)
+bp_random_may21 <- assign_attributes_and_calculate_correlation(random_net_may21, net_clickmay21_filtered)
+bp_random_jun21 <- assign_attributes_and_calculate_correlation(random_net_jun21, net_clickjun21_filtered)
+bp_random_jul21 <- assign_attributes_and_calculate_correlation(random_net_jul21, net_clickjul21_filtered)
+bp_random_aug21 <- assign_attributes_and_calculate_correlation(random_net_aug21, net_clickaug21_filtered)
+bp_random_sep21 <- assign_attributes_and_calculate_correlation(random_net_sep21, net_clicksep21_filtered)
+bp_random_oct21 <- assign_attributes_and_calculate_correlation(random_net_oct21, net_clickoct21_filtered)
+bp_random_nov21 <- assign_attributes_and_calculate_correlation(random_net_nov21, net_clicknov21_filtered)
+```
+
+
+```{r bp_visualisation}
+# Create a data frame with the boundary polarisation scores
+boundary_polarisation_scores <- data.frame(
+  Month = c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021"),
+  Boundary_Polarisation = c(bp_nov19, bp_dec19, bp_jan20, bp_feb20, bp_mar20, bp_apr20, bp_may20, bp_jun20, bp_jul20, bp_aug20, bp_sep20, bp_nov20, bp_dec20, bp_jan21, bp_feb21, bp_mar21, bp_apr21, bp_may21, bp_jun21, bp_jul21, bp_aug21, bp_sep21, bp_oct21, bp_nov21),
+  Random = c(bp_random_nov19, bp_random_dec19, bp_random_jan20, bp_random_feb20, bp_random_mar20, bp_random_apr20, bp_random_may20, bp_random_jun20, bp_random_jul20, bp_random_aug20, bp_random_sep20, bp_random_nov20, bp_random_dec20, bp_random_jan21, bp_random_feb21, bp_random_mar21, bp_random_apr21, bp_random_may21, bp_random_jun21, bp_random_jul21, bp_random_aug21, bp_random_sep21, bp_random_oct21, bp_random_nov21)
+)
+
+boundary_polarisation_scores$Month <- factor(
+  boundary_polarisation_scores$Month,
+  levels = c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021")
+)
+
+# create line graph
+ggplot(boundary_polarisation_scores, aes(x = Month, y = Boundary_Polarisation, group = 1)) +
+  geom_line(aes(y = Random, color = "Random Networks")) +
+  geom_line(aes(color = "Empirical Networks")) +
+  geom_point(aes(y = Random, color = "Random Networks")) +
+  geom_point(aes(y = Boundary_Polarisation, color = "Empirical Networks")) +
+  geom_vline(xintercept = 12, linetype = "dashed", color = "purple", alpha = 0.4) +
+  geom_vline(xintercept = 14, linetype = "dashed", color = "purple", alpha = 0.4) +
+  annotate("text", x = 12, y = 0.1, label = "Election", vjust = -1, color = "purple") +
+  annotate("text", x = 14, y = 0.1, label = "Insurgence", vjust = -5, color = "purple") +
+  labs(x = "Month", y = "Spearman's Rho", title = "Boundary Polarisation from September 2020 to February 2021") +
+  theme_minimal() +
+    theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    legend.title = element_blank(),
+    plot.title = element_text(size = 8)) + # Smaller title size
+  scale_y_continuous(limits = c(0, NA))
+```
+```{r}
+save.image("data/click_networks_rw.RData")
+```
+
+```{r page_views_nov}
+# Define a function to fetch the total page views for a given article
+page_view_month <- function(article_name, start, end) {
+  # Get the name of the article
+  # article_name <- V(graph)$name[start]
+  
+  # Construct the URL for the API request
+  url <- paste0(
+    "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia.org/all-access/all-agents/",
+    article_name,
+    "/daily/",
+    start,
+    "/",
+    end
+  )
+  
+  # Make the GET request
+  response <- GET(url, add_headers(`accept` = "application/json"))
+  
+  # Check if the request was successful
+  if (status_code(response) == 200) {
+    # Parse the JSON content
+    content_data <- content(response, "parsed")
+    # Extract views from each day and sum them
+    total_views <- sum(sapply(content_data$items, function(item) item$views))
+    return(total_views)
+  } else {
+    return(NA)
+  }
+}
+
+# loop through all republican pages
+page_views_republican <- list()
+for (i in republican_pages) {
+  # initialise empty list
+  # save results in a named list
+  page_views_republican[[i]] <- page_view_month(i, "20201101", "20201130")
+  if (is.na(page_views_republican[[i]])) {
+    # print(paste("Failed to fetch data for", i))
+    next
+  }
+}
+
+# loop through all democrat pages
+page_views_democrat <- list()
+for (i in democrat_pages) {
+  # initialise empty list
+  # save results in a named list
+  page_views_democrat[[i]] <- page_view_month(i, "20201101", "20201130")
+  if (is.na(page_views_democrat[[i]])) {
+    # print(paste("Failed to fetch data for", i))
+    next
+  }
+}
+
+updated_rep_pv_list <- list()
+
+# Iterate through the original list
+for (original_name in names(page_views_republican)) {
+  # Retrieve the value associated with the original name
+  page_views <- page_views_republican[[original_name]]
+
+  # Standardize the name
+  standardized_name <- tolower(original_name)
+  standardized_name <- gsub(" ", "_", standardized_name)
+  standardized_name <- trimws(standardized_name)
+
+  # Store the value under the new standardized name in the updated list
+  updated_rep_pv_list[[standardized_name]] <- page_views
+}
+
+updated_dem_pv_list <- list()
+
+for (original_name in names(page_views_democrat)) {
+  # Retrieve the value associated with the original name
+  page_views <- page_views_democrat[[original_name]]
+
+  # Standardize the name
+  standardized_name <- tolower(original_name)
+  standardized_name <- gsub(" ", "_", standardized_name)
+  standardized_name <- trimws(standardized_name)
+
+  # Store the value under the new standardized name in the updated list
+  updated_dem_pv_list[[standardized_name]] <- page_views
+}
+
+# Extract names from the network vertices
+network_names <- V(net_clicknov20_filtered)$name
+
+matched_names_rep <- network_names[network_names %in% names(updated_rep_pv_list)]
+page_views_republican_filtered <- updated_rep_pv_list[matched_names_rep]
+
+matched_names_dem <- network_names[network_names %in% names(updated_dem_pv_list)]
+page_views_democrat_filtered <- updated_dem_pv_list[matched_names_dem]
+
+# order by descending page views
+page_views_republican_filtered <- page_views_republican_filtered[order(unlist(page_views_republican_filtered), decreasing = TRUE)]
+
+page_views_democrat_filtered <- page_views_democrat_filtered[order(unlist(page_views_democrat_filtered), decreasing = TRUE)]
+
+# extract na values
+# page_views_na <- page_views_republican_filtered[is.na(page_views_republican_filtered)]
+
+# get the names of the pages for which the data could not be fetched
+# page_views_na_names <- names(page_views_na)
+
+# page_views_republican[["9/11_truth_movement"]] <- page_view_month("9%2F11_truth_movement", "20201101", "20201130")
+
+# extract page names of the first 1000 pages
+page_names_republican <- names(page_views_republican_filtered)[1:100]
+page_names_democrat <- names(page_views_democrat_filtered)[1:100]
+
+# loop through all republican pages
+page_views_republican_dec <- list()
+for (i in republican_pages) {
+  # initialise empty list
+  # save results in a named list
+  page_views_republican_dec[[i]] <- page_view_month(i, "20201201", "20201231")
+  if (is.na(page_views_republican_dec[[i]])) {
+    # print(paste("Failed to fetch data for", i))
+    next
+  }
+}
+
+# loop through all democrat pages
+page_views_democrat_dec <- list()
+for (i in democrat_pages) {
+  # initialise empty list
+  # save results in a named list
+  page_views_democrat_dec[[i]] <- page_view_month(i, "20201201", "20201231")
+  if (is.na(page_views_democrat_dec[[i]])) {
+    # print(paste("Failed to fetch data for", i))
+    next
+  }
+}
+
+updated_rep_pv_list_dec <- list()
+
+# Iterate through the original list
+for (original_name in names(page_views_republican)) {
+  # Retrieve the value associated with the original name
+  page_views_dec <- page_views_republican[[original_name]]
+
+  # Standardize the name
+  standardized_name <- tolower(original_name)
+  standardized_name <- gsub(" ", "_", standardized_name)
+  standardized_name <- trimws(standardized_name)
+
+  # Store the value under the new standardized name in the updated list
+  updated_rep_pv_list_dec[[standardized_name]] <- page_views_dec
+}
+
+updated_dem_pv_list_dec <- list()
+
+for (original_name in names(page_views_democrat)) {
+  # Retrieve the value associated with the original name
+  page_views_dec <- page_views_democrat[[original_name]]
+
+  # Standardize the name
+  standardized_name <- tolower(original_name)
+  standardized_name <- gsub(" ", "_", standardized_name)
+  standardized_name <- trimws(standardized_name)
+
+  # Store the value under the new standardized name in the updated list
+  updated_dem_pv_list_dec[[standardized_name]] <- page_views_dec
+}
+
+# Extract names from the network vertices
+network_names_dec <- V(net_clickdec20_filtered)$name
+
+matched_names_rep_dec <- network_names_dec[network_names_dec %in% names(updated_rep_pv_list_dec)]
+page_views_republican_filtered_dec <- updated_rep_pv_list_dec[matched_names_rep_dec]
+
+matched_names_dem_dec <- network_names_dec[network_names_dec %in% names(updated_dem_pv_list_dec)]
+page_views_democrat_filtered_dec <- updated_dem_pv_list_dec[matched_names_dem_dec]
+
+# order by descending page views
+page_views_republican_filtered_dec <- page_views_republican_filtered_dec[order(unlist(page_views_republican_filtered_dec), decreasing = TRUE)]
+
+page_views_democrat_filtered_dec <- page_views_democrat_filtered_dec[order(unlist(page_views_democrat_filtered_dec), decreasing = TRUE)]
+
+# extract na values
+# page_views_na <- page_views_republican_filtered[is.na(page_views_republican_filtered)]
+
+# get the names of the pages for which the data could not be fetched
+# page_views_na_names <- names(page_views_na)
+
+# page_views_republican[["9/11_truth_movement"]] <- page_view_month("9%2F11_truth_movement", "20201101", "20201130")
+
+# extract page names of the first 1000 pages
+page_names_republican_dec <- names(page_views_republican_filtered_dec)[1:100]
+page_names_democrat_dec <- names(page_views_democrat_filtered_dec)[1:100]
+
+intersect(page_names_republican, page_names_republican_dec)
+intersect(page_names_democrat, page_names_democrat_dec)
+```
+
+```{r}
+# Iterate through each node and find neighbors with opposing party
+nodes_with_opposing_neighbors <- c()
+
+for (i in 1:length(V(net_clicknov20_filtered))) {
+  # get the party of the current node
+  current_party <- vertex_attr(net_clicknov20_filtered, name = "party")[i]
+  neighbors_of_i <- neighbors(net_clicknov20_filtered, i)
+  node_name <- V(net_clicknov20_filtered)$name[i]
+  if (current_party == "Republican") {
+    # get the party of the neighbors
+    neighbors_party <- vertex_attr(net_clicknov20_filtered, name = "party")[neighbors_of_i]
+    # check if any neighbor has a different party
+    if ("Democrat" %in% neighbors_party) {
+      nodes_with_opposing_neighbors <- c(nodes_with_opposing_neighbors, node_name)
+    }
+  } else if (current_party == "Democrat") {
+    # get the party of the neighbors
+    neighbors_party <- vertex_attr(net_clicknov20_filtered, name = "party")[neighbors_of_i]
+    # check if any neighbor has a different party
+    if ("Republican" %in% neighbors_party) {
+      nodes_with_opposing_neighbors <- c(nodes_with_opposing_neighbors, node_name)
+    }
+  }
+}
+
+intersect(nodes_with_opposing_neighbors, page_names_republican)
+intersect(nodes_with_opposing_neighbors, page_names_democrat)
+```
+
+
+```{r random_walk}
 random_party_walk <- function(graph, start, steps, weights, party_type, mode = "out", stuck = "return") {
   # Initialize the current node
   current_node <- start
-  current_node <- V(graph)$name[current_node]
+  # current_node <- V(graph)$name[current_node]
   partition_switch <- FALSE
   n_steps <- 0
   n_steps_trapped <- 0
@@ -828,15 +1600,9 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
   return(c(current_node, n_steps, n_steps_trapped))
 }
 
-output <- random_party_walk(net_clicknov20, 900, 10, E(net_clicknov20)$weight, "Democrat", mode = "out", stuck = "return")
-final_node <- output[1]
-steps_taken <- as.numeric(output[2])
-n_steps_trapped <- as.numeric(output[3])
-
-
-analyze_party_walk <- function(graph, party, iterations = 50, steps = 10) {
+analyze_party_walk <- function(graph, party, vertices, steps = 10) {
   n_trapped <- 0
-  steps_needed <- vector(mode = "list", length = iterations)
+  steps_needed <- vector(mode = "list", length = length(vertices))
   trapped_steps <- list()
   n_part_shift <- 0
   n_other <- 0
@@ -844,11 +1610,11 @@ analyze_party_walk <- function(graph, party, iterations = 50, steps = 10) {
   n_republican <- 0
   n_democrat <- 0
   
-  for (i in 1:iterations) {
+  for (i in vertices) {
     n_steps_trapped <- 0
     cat("\r", i, flush = TRUE)
     party_vertices <- which(V(graph)$party == party)
-    start_node <- sample(party_vertices, 1)
+    start_node <- i
     
     output <- random_party_walk(
       graph, start_node, steps = steps, weights = E(graph)$weight, party_type = party, mode = "out", stuck = "return"
@@ -927,76 +1693,128 @@ results_jan21 <- analyze_party_walk(net_clickjan21, "Democrat", iterations = 100
 results_feb21 <- analyze_party_walk(net_clickfeb21, "Democrat", iterations = 100, steps = 10)
 results_mar21 <- analyze_party_walk(net_clickmar21, "Democrat", iterations = 100, steps = 10)
 
-data_list <- list(
+data_list1 <- list(
   results_aug20, results_sep20, results_oct20, results_nov20, results_dec20, results_jan21, results_feb21, results_mar21)
 
-```
+# make data frame
+data_list1_df <- data.frame(
+  Index = 1:length(data_list1),
+  mean_steps = sapply(data_list1, function(x) x$steps),
+  n_part_shift = sapply(data_list1, function(x) x$n_part_shift),
+  n_trapped = sapply(data_list1, function(x) x$n_trapped),
+  mean_steps_trapped = sapply(data_list1, function(x) x$mean_steps_trapped),
+  n_republican = sapply(data_list1, function(x) x$n_republican),
+  n_democrat = sapply(data_list1, function(x) x$n_democrat),
+  n_politics = sapply(data_list1, function(x) x$n_politics),
+  n_other = sapply(data_list1, function(x) x$n_other)
+)
 
-```{r}
-# Extracting data
-mean_steps <- sapply(data_list, function(x) x$mean_steps)
-n_part_shift <- sapply(data_list, function(x) x$n_part_shift)
-n_trapped <- sapply(data_list, function(x) x$n_trapped)
+# same procedure for Republicans
+results_rep_aug20 <- analyze_party_walk(net_clickaug20, "Republican", iterations = 100, steps = 10)
 
-# Create scatterplots
-# Load necessary library
-library(ggplot2)
+results_rep_sep20 <- analyze_party_walk(net_clicksep20, "Republican", page_names_republican, steps = 5)
 
-# Scatterplot for mean_steps
-mean_steps_df <- data.frame(Index = 1:length(mean_steps), mean_steps = mean_steps)
-ggplot(mean_steps_df, aes(x = Index, y = mean_steps)) +
-  geom_point() +
-  ggtitle("Scatterplot of mean_steps")
+results_rep_oct20 <- analyze_party_walk(net_clickoct20, "Republican", iterations = 100, steps = 10)
 
-# Scatterplot for n_part_shift
-n_part_shift_df <- data.frame(Index = 1:length(n_part_shift), n_part_shift = n_part_shift)
-ggplot(n_part_shift_df, aes(x = Index, y = n_part_shift)) +
-  geom_point() +
-  ggtitle("Scatterplot of n_part_shift")
+results_rep_nov20 <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5)
 
-# Scatterplot for n_trapped
-n_trapped_df <- data.frame(Index = 1:length(n_trapped), n_trapped = n_trapped)
-ggplot(n_trapped_df, aes(x = Index, y = n_trapped)) +
-  geom_point() +
-  ggtitle("Scatterplot of n_trapped")
+results_rep_dec20 <- analyze_party_walk(net_clickdec20, "Republican", iterations = 100, steps = 10)
+results_rep_jan21 <- analyze_party_walk(net_clickjan21, "Republican", iterations = 100, steps = 10)
+results_rep_feb21 <- analyze_party_walk(net_clickfeb21, "Republican", iterations = 100, steps = 10)
+results_rep_mar21 <- analyze_party_walk(net_clickmar21, "Republican", iterations = 100, steps = 10)
 
-```
+data_list2 <- list(
+  results_rep_aug20, results_rep_sep20, results_rep_oct20, results_rep_nov20, results_rep_dec20, results_rep_jan21, results_rep_feb21, results_rep_mar21)
 
-
-```{r}
-# try to run it a hundered times and take the average
-# add the rest of the nodes back in
-
-#ERGMs for edges between republican and democrat? add a time element as coefficient?
-
-#Qs for Shakeel: 
-# how feasible is it to use R on GCP? I'm not too confident in doing this in Python bc my networks class is in R...
-# also: I have a network where a) one edge (main party pages) dominates everything else and b) the rest of the network is very sparse (a lot of nodes do not have relevant neighbours). How do I deal with this?
-
-
-# fabian - depending on how big the network is, it might be too big because R keeps it in RAM (need to request RAM according to how large your dataset is)
-# rsync source destination
-# log scale for dataset then fit linear regression
-# check if igraph supports parallelisation 
-# -> paralellise over 6 cores
-# use foreach parallel package
-
-# sliding windows of 2 month series so you only analyse 2 months at a time
-
-# alternative: networkx in python 
+# make data frame
+data_list2_df <- data.frame(
+  Index = 1:length(data_list2),
+  mean_steps = sapply(data_list2, function(x) x$steps),
+  n_part_shift = sapply(data_list2, function(x) x$n_part_shift),
+  n_trapped = sapply(data_list2, function(x) x$n_trapped),
+  mean_steps_trapped = sapply(data_list2, function(x) x$mean_steps_trapped),
+  n_republican = sapply(data_list2, function(x) x$n_republican),
+  n_democrat = sapply(data_list2, function(x) x$n_democrat),
+  n_politics = sapply(data_list2, function(x) x$n_politics),
+  n_other = sapply(data_list2, function(x) x$n_other)
+)
 ```
 
 
-### Meeting with Patrick
+```{r rw_visualisation}
+# four plots in one panel
+par(mfrow=c(1,6))
 
-Plan: 
-1. take one revision of each article from the same amount of time (Revision API gets you most recent revision to a timestamp)
-2. robustness check: for each article take a another time stamp from each month and get a dissimilarity score (hopefully this will return only noise)
-3. then see how hyperlinks changed from month to month for each article (for example grab one hyperlink (with regex maybe) and track its changes over time)
-  -> note that there are other papers who have tracked the movements of hyperlinks, orient yourself based on Lerman, Helic, Strohmaier (their work is NOT helpful here as it tunrs out)
-    -> Idea: extract lead section and infobox using regex, then extract all hyperlinks in these two sections. do these for all timestamps, then track dissimilarity scores
-    -> Other Idea: just do dissimilarity scores on the lead and infobox themselves instead of extracting hyperlinks
-  -> note that you should pay special attention to times when page views spike (e.g. election time) and see if hyperlinks changed during that time (sample more revisions during that time)
-  
-  - look at the other articles he mentioned (how readers browse Wikipedia, large scale attention shifts following COVID-19 mobility restrictions)
+months <- c("Aug.", "Sep.", "Oct.", "Nov.", "Dec.", "Jan.", "Feb.", "March")
 
+# Create the data frame for plotting
+mean_steps_df1 <- data.frame(Month = factor(months, levels = months), mean_steps = data_list1_df$mean_steps)
+
+# Create a scatter plot
+ggplot(mean_steps_df1, aes(x = Month, y = mean_steps)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Scatterplot of Mean Steps from Democrat to Republican", x = "Months in 2020-2021", y = "Mean Steps")
+
+# Create the data frame for plotting
+mean_steps_df2 <- data.frame(Month = factor(months, levels = months), mean_steps = data_list2_df$mean_steps)
+
+# Create a scatter plot
+ggplot(mean_steps_df2, aes(x = Month, y = mean_steps)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Scatterplot of Mean Steps from Republican to Democrat", x = "Months in 2020-2021", y = "Mean Steps")
+
+# Extracting datas
+n_part_shift1 <- data.frame(Month = factor(months, levels = months), n_part_shifts = data_list1_df$n_part_shift)
+
+ggplot(n_part_shift1, aes(x = Month, y = n_part_shifts)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Scatterplot of Number of partition shifts coming from a Democratic Page", x = "Months in 2020-2021", y = "Number of Partition Shifts")
+
+# same for Republicans
+n_part_shift2 <- data.frame(Month = factor(months, levels = months), n_part_shifts = data_list2_df$n_part_shift)
+
+# Scatterplot for partition shifts
+ggplot(n_part_shift2, aes(x = Month, y = n_part_shifts)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Scatterplot of Number of partition shifts coming from a Republican Page", x = "Months in 2020-2021", y = "Number of Partition Shifts")
+
+# make bar plots for which party the random walk ended up in
+par(mfrow=c(1,2))
+
+# Create the data frame for plotting
+n_party_df1 <- data.frame(Month = factor(months, levels = months), n_republican = data_list1_df$n_republican, n_democrat = data_list1_df$n_democrat, n_politics = data_list1_df$n_politics, n_other = data_list1_df$n_other)
+
+# Create a bar plot
+n_party_long_df <- n_party_df1 %>%
+  pivot_longer(cols = starts_with("n_"), names_to = "Party", values_to = "Number")
+
+# Map party names to colors
+# Ensure the Party column has the correct factor levels
+n_party_long_df$Party <- factor(n_party_long_df$Party, levels = c("n_republican", "n_democrat", "n_politics", "n_other"), labels = c("Republican", "Democrat", "Politics", "Other"))
+
+# Map party names to colors
+party_colors <- c("Republican" = "red", "Democrat" = "blue", "Politics" = "green", "Other" = "gray")
+
+# Create a bar plot
+ggplot(n_party_long_df, aes(x = Month, y = Number, fill = Party)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Bar Plot of Party Affiliations of Final Nodes from Democrat to Republican", x = "Months in 2020-2021", y = "Number of Pages") +
+  scale_fill_manual(values = party_colors)
+
+# same for republican
+n_party_df2 <- data.frame(Month = factor(months, levels = months), n_republican = data_list2_df$n_republican, n_democrat = data_list2_df$n_democrat, n_politics = data_list2_df$n_politics, n_other = data_list2_df$n_other)
+
+# Create a bar plot
+n_party_long_df2 <- n_party_df2 %>%
+  pivot_longer(cols = starts_with("n_"), names_to = "Party", values_to = "Number")
+
+# Map party names to colors
+# Ensure the Party column has the correct factor levels
+n_party_long_df2$Party <- factor(n_party_long_df2$Party, levels = c("n_republican", "n_democrat", "n_politics", "n_other"), labels = c("Republican", "Democrat", "Politics", "Other"))
+
+# Create a bar plot
+ggplot(n_party_long_df2, aes(x = Month, y = Number, fill = Party)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Bar Plot of Party Affiliations of Final Nodes from Republican to Democrat", x = "Months in 2020-2021", y = "Number of Pages") +
+  scale_fill_manual(values = party_colors)
+```
