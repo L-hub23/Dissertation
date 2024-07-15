@@ -530,7 +530,7 @@ new_affiliations <- data.frame(Element = c("2004_united_states_presidential_elec
 
 # extend the data frame to change the following party attribute to "Other": "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert"
 
-new_affiliations <- rbind(new_affiliations, data.frame(Element = c("call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady", "john_wane_gacy"), Category = "Other"))
+new_affiliations <- rbind(new_affiliations, data.frame(Element = c("call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady", "john_wane_gacy", "ken_jennings", "beyoncé", "stephen_king"), Category = "Other"))
 
 new_affiliations <- rbind(new_affiliations, data.frame(Element = "hillary_clinton", Category = "Democrat"))
 
@@ -1418,7 +1418,7 @@ for (i in democrat_pages) {
 updated_rep_pv_list_dec <- list()
 
 # Iterate through the original list
-for (original_name in names(page_views_republican)) {
+for (original_name in names(page_views_republican_dec)) {
   # Retrieve the value associated with the original name
   page_views_dec <- page_views_republican[[original_name]]
 
@@ -1433,7 +1433,7 @@ for (original_name in names(page_views_republican)) {
 
 updated_dem_pv_list_dec <- list()
 
-for (original_name in names(page_views_democrat)) {
+for (original_name in names(page_views_democrat_dec)) {
   # Retrieve the value associated with the original name
   page_views_dec <- page_views_democrat[[original_name]]
 
@@ -1472,9 +1472,184 @@ page_views_democrat_filtered_dec <- page_views_democrat_filtered_dec[order(unlis
 page_names_republican_dec <- names(page_views_republican_filtered_dec)[1:100]
 page_names_democrat_dec <- names(page_views_democrat_filtered_dec)[1:100]
 
-intersect(page_names_republican, page_names_republican_dec)
-intersect(page_names_democrat, page_names_democrat_dec)
+common_pages_rep <- intersect(page_names_republican, page_names_republican_dec)
+common_pages_dem <- intersect(page_names_democrat, page_names_democrat_dec)
 ```
+
+```{r page_views_jan}
+# loop through all republican pages
+page_views_republican_jan <- list()
+for (i in republican_pages) {
+  # initialise empty list
+  # save results in a named list
+  page_views_republican_jan[[i]] <- page_view_month(i, "20210101", "20210131")
+  if (is.na(page_views_republican_jan[[i]])) {
+    # print(paste("Failed to fetch data for", i))
+    next
+  }
+}
+
+# loop through all democrat pages
+page_views_democrat_jan <- list()
+for (i in democrat_pages) {
+  # initialise empty list
+  # save results in a named list
+  page_views_democrat_jan[[i]] <- page_view_month(i, "20210101", "20210131")
+  if (is.na(page_views_democrat_jan[[i]])) {
+    # print(paste("Failed to fetch data for", i))
+    next
+  }
+}
+
+updated_rep_pv_list_jan <- list()
+
+# Iterate through the original list
+for (original_name in names(page_views_republican_jan)) {
+  # Retrieve the value associated with the original name
+  page_views_jan_rep <- page_views_republican[[original_name]]
+
+  # Standardize the name
+  standardized_name <- tolower(original_name)
+  standardized_name <- gsub(" ", "_", standardized_name)
+  standardized_name <- trimws(standardized_name)
+
+  # Store the value under the new standardized name in the updated list
+  updated_rep_pv_list_jan[[standardized_name]] <- page_views_jan_rep
+}
+
+updated_dem_pv_list_jan <- list()
+
+for (original_name in names(page_views_democrat_jan)) {
+  # Retrieve the value associated with the original name
+  page_views_jan_dem <- page_views_democrat[[original_name]]
+
+  # Standardize the name
+  standardized_name <- tolower(original_name)
+  standardized_name <- gsub(" ", "_", standardized_name)
+  standardized_name <- trimws(standardized_name)
+
+  # Store the value under the new standardized name in the updated list
+  updated_dem_pv_list_jan[[standardized_name]] <- page_views_jan_dem
+}
+
+# Extract names from the network vertices
+network_names_jan <- V(net_clickjan21_filtered)$name
+
+matched_names_rep_jan <- network_names_dec[network_names_jan %in% names(updated_rep_pv_list_jan)]
+page_views_republican_filtered_jan <- updated_rep_pv_list_jan[matched_names_rep_jan]
+
+matched_names_dem_jan <- network_names_jan[network_names_jan %in% names(updated_dem_pv_list_jan)]
+page_views_democrat_filtered_jan <- updated_dem_pv_list_jan[matched_names_dem_jan]
+
+# order by descending page views
+page_views_republican_filtered_jan <- page_views_republican_filtered_jan[order(unlist(page_views_republican_filtered_jan), decreasing = TRUE)]
+
+page_views_democrat_filtered_jan <- page_views_democrat_filtered_jan[order(unlist(page_views_democrat_filtered_jan), decreasing = TRUE)]
+
+# extract na values
+# page_views_na <- page_views_republican_filtered[is.na(page_views_republican_filtered)]
+
+# get the names of the pages for which the data could not be fetched
+# page_views_na_names <- names(page_views_na)
+
+# page_views_republican[["9/11_truth_movement"]] <- page_view_month("9%2F11_truth_movement", "20201101", "20201130")
+
+# extract page names of the first 1000 pages
+page_names_republican_jan <- names(page_views_republican_filtered_jan)[1:100]
+page_names_democrat_jan <- names(page_views_democrat_filtered_jan)[1:100]
+
+intersect(common_pages_rep, page_names_republican_jan)
+intersect(common_pages_dem, page_names_democrat_jan)
+```
+
+
+
+```{r page_views_feb}
+# loop through all republican pages
+page_views_republican_feb <- list()
+for (i in republican_pages) {
+  # initialise empty list
+  # save results in a named list
+  page_views_republican_feb[[i]] <- page_view_month(i, "20210201", "20210228")
+  if (is.na(page_views_republican_feb[[i]])) {
+    # print(paste("Failed to fetch data for", i))
+    next
+  }
+}
+
+# loop through all democrat pages
+page_views_democrat_feb <- list()
+for (i in democrat_pages) {
+  # initialise empty list
+  # save results in a named list
+  page_views_democrat_feb[[i]] <- page_view_month(i, "20210201", "20210228")
+  if (is.na(page_views_democrat_feb[[i]])) {
+    # print(paste("Failed to fetch data for", i))
+    next
+  }
+}
+
+updated_rep_pv_list_feb <- list()
+
+# Iterate through the original list
+for (original_name in names(page_views_republican_feb)) {
+  # Retrieve the value associated with the original name
+  page_views_feb <- page_views_republican[[original_name]]
+
+  # Standardize the name
+  standardized_name <- tolower(original_name)
+  standardized_name <- gsub(" ", "_", standardized_name)
+  standardized_name <- trimws(standardized_name)
+
+  # Store the value under the new standardized name in the updated list
+  updated_rep_pv_list_feb[[standardized_name]] <- page_views_feb
+}
+
+updated_dem_pv_list_feb <- list()
+
+for (original_name in names(page_views_democrat_feb)) {
+  # Retrieve the value associated with the original name
+  page_views_feb <- page_views_democrat[[original_name]]
+
+  # Standardize the name
+  standardized_name <- tolower(original_name)
+  standardized_name <- gsub(" ", "_", standardized_name)
+  standardized_name <- trimws(standardized_name)
+
+  # Store the value under the new standardized name in the updated list
+  updated_dem_pv_list_feb[[standardized_name]] <- page_views_feb
+}
+
+# Extract names from the network vertices
+network_names_feb <- V(net_clickfeb21_filtered)$name
+
+matched_names_rep_feb <- network_names_dec[network_names_feb %in% names(updated_rep_pv_list_feb)]
+page_views_republican_filtered_feb <- updated_rep_pv_list_feb[matched_names_rep_feb]
+
+matched_names_dem_feb <- network_names_feb[network_names_feb %in% names(updated_dem_pv_list_feb)]
+page_views_democrat_filtered_feb <- updated_dem_pv_list_feb[matched_names_dem_feb]
+
+# order by descending page views
+page_views_republican_filtered_feb <- page_views_republican_filtered_feb[order(unlist(page_views_republican_filtered_feb), decreasing = TRUE)]
+
+page_views_democrat_filtered_feb <- page_views_democrat_filtered_feb[order(unlist(page_views_democrat_filtered_feb), decreasing = TRUE)]
+
+# extract na values
+# page_views_na <- page_views_republican_filtered[is.na(page_views_republican_filtered)]
+
+# get the names of the pages for which the data could not be fetched
+# page_views_na_names <- names(page_views_na)
+
+# page_views_republican[["9/11_truth_movement"]] <- page_view_month("9%2F11_truth_movement", "20201101", "20201130")
+
+# extract page names of the first 1000 pages
+page_names_republican_feb <- names(page_views_republican_filtered_feb)[1:100]
+page_names_democrat_feb <- names(page_views_democrat_filtered_feb)[1:100]
+
+intersect(common_pages_rep, page_names_republican_feb)
+intersect(common_pages_dem, page_names_democrat_feb)
+```
+
 
 ```{r}
 # Iterate through each node and find neighbors with opposing party
@@ -1511,103 +1686,79 @@ intersect(nodes_with_opposing_neighbors, page_names_democrat)
 random_party_walk <- function(graph, start, steps, weights, party_type, mode = "out", stuck = "return") {
   # Initialize the current node
   current_node <- start
-  # current_node <- V(graph)$name[current_node]
   partition_switch <- FALSE
   n_steps <- 0
   n_steps_trapped <- 0
   
+  # Pre-fetch parties and names
   node_parties <- V(graph)$party
   node_names <- V(graph)$name
   edge_weights <- E(graph)$weight
-
-# Function to fetch weights more efficiently
-  get_weights <- function(graph, current_node, neighbors) {
-    current_node_index <- which(node_names == current_node)
-    neighbor_indices <- as.numeric(neighbors) # Convert to numeric indices
-    edge_ids <- get.edge.ids(
-      graph, c(rep(current_node_index, length(neighbor_indices)), neighbor_indices))
+  
+  # Function to fetch weights more efficiently
+  get_weights <- function(graph, current_node_index, neighbor_indices) {
+    edge_ids <- sapply(neighbor_indices, function(neighbor_index) {
+      get.edge.ids(graph, c(current_node_index, neighbor_index))
+    })
     return(edge_weights[edge_ids])
   }
-  
+
   # Perform the random walk
   for (i in 1:steps) {
     # Get neighbors of the current node based on the specified mode
     node_neighbors <- neighbors(graph, current_node, mode = mode)
     
-    
     # If there are no neighbors, return or break depending on the "stuck" parameter
     if (length(node_neighbors) == 0) {
       if (n_steps == 0) { # if first node was already an "isolate" (no outgoing edges)
-        # return NA
         return(NA)
       }
-      # node_neighbors <- neighbors(graph, current_node, mode = "all")
-      # print name of node neighbours for testing
       n_steps_trapped <- n_steps
       n_steps <- 15
       return(c(current_node, n_steps, n_steps_trapped))
     }
-    
-    edge_weights <- get_weights(graph, current_node, node_neighbors)
-    
-    if (any(is.na(edge_weights))) {
-      return(NA)
-    }
 
-    # Choose a random neighbor weighted by the edge weights
-    #node_neighbor <- V(graph)$name[node_neighbors]
+    # Convert neighbors to names and indices
+    node_neighbor_indices <- as.numeric(node_neighbors)
     
-    #edge_weights <- sapply(node_neighbor, function(neighbor) {
-      #edge_index <- get.edge.ids(graph, c(current_node, neighbor))
-      #E(graph)[edge_index]$weight
-    #})
+    # Fetch weights more efficiently
+    current_node_index <- match(current_node, node_names)
+    neighbor_weights <- get_weights(graph, current_node_index, node_neighbor_indices)
     
-    #if (class(edge_weights) == "list") {
-      # remove NULL values
-      # edge_weights <- edge_weights[!sapply(edge_weights, is.null)]
-      # remove NA values
-      # edge_weights <- edge_weights[!is.na(edge_weights)]
-      # convert to numeric
-      # edge_weights <- unlist(edge_weights)
-      # edge_weights <- as.numeric(edge_weights)
+    # Check for valid weights and match length of weights with neighbors
+   # if (any(is.na(neighbor_weights)) || length(neighbor_weights) != length(node_neighbors)) {
+      #cat("Debug Info: Incorrect weights length\n")
+      #cat("node_neighbors length: ", length(node_neighbors), "\n")
+      #cat("neighbor_weights length: ", length(neighbor_weights), "\n")
       #return(NA)
     #}
     
-        # Check for valid weights and match length of weights with neighbors
-    if (any(
-      is.na(edge_weights)) || length(edge_weights) != length(node_neighbors)) {
-      cat("Debug Info: Incorrect weights length\n")
-      cat("node_neighbors length: ", length(node_neighbors), "\n")
-      cat("neighbor_weights length: ", length(edge_weights), "\n")
-      return(NA)
-    }
-    
     # Calculate sum of edge weights
-    sum_weights <- sum(edge_weights)
-
+    sum_weights <- sum(neighbor_weights)
+    
     # Normalize edge weights to obtain probabilities
-    probabilities <- edge_weights / sum_weights
-
+    probabilities <- neighbor_weights / sum_weights
+    
+    # Debugging prints to validate lengths
+   # cat("Debug Info: Step ", i, "\n")
+    #cat("node_neighbors: ", node_neighbors, "\n")
+    #cat("neighbor_weights: ", neighbor_weights, "\n")
+   # cat("probabilities: ", probabilities, "\n")
+    
     # Sample a neighbor using the probabilities
     next_node_index <- sample(length(node_neighbors), 1, prob = probabilities)
     next_node <- node_neighbors[next_node_index]
     
-    next_node <- as.character(V(graph)$name[next_node])
-    
-    
+    next_node_name <- as.character(node_names[next_node])
     
     # Update the current node
-    current_node <- next_node
-    
+    current_node <- next_node_name
     
     n_steps <- n_steps + 1
     
+    current_node_index <- match(current_node, node_names)
     
-    current_node_index <- which(V(graph)$name == current_node)
-    
-    
-    if (party_type == "Democrat"){
-     # Check if the current node has the desired party affiliation
+    if (party_type == "Democrat") {
       if (node_parties[current_node_index] == "Republican") {
         partition_switch <- TRUE
         break  # Stop the random walk if the current node is Republican
@@ -1619,16 +1770,16 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
       }
     }
   }
+  
   if (partition_switch == FALSE) {
     n_steps <- 20
   }
-  # get party affiliation of final node
-  final_node_party <- V(graph)$party[current_node_index]
+  
   # Return the final node reached by the random walk
   return(c(current_node, n_steps, n_steps_trapped))
 }
 
-analyze_party_walk <- function(graph, party, vertices, steps = 10) {
+analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 1) {
   n_trapped <- 0
   steps_needed <- vector(mode = "list", length = length(vertices))
   trapped_steps <- list()
@@ -1695,8 +1846,6 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10) {
   steps_needed <- steps_needed[steps_needed != 15]
   steps_needed <- steps_needed[steps_needed != 20]
   
-  print(steps_needed)
-  
   # get average
   steps_needed <- unlist(steps_needed)
   mean_steps <- mean(steps_needed, na.rm = TRUE)
@@ -1705,19 +1854,14 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10) {
   trapped_steps <- unlist(trapped_steps)
   mean_trapped_steps <- mean(trapped_steps, na.rm = TRUE)
   
-  return(list(steps = mean_steps, n_part_shift = n_part_shift, n_trapped = n_trapped, mean_steps_trapped = mean_trapped_steps, n_republican = n_republican, n_democrat = n_democrat, n_politics = n_politics, n_other = n_other))
+  return(list(
+    steps = mean_steps, n_part_shift = n_part_shift, n_trapped = n_trapped, mean_steps_trapped = mean_trapped_steps, n_republican = n_republican, n_democrat = n_democrat, n_politics = n_politics, n_other = n_other))
 }
 
 # analyse party walk for networks from august to march
-results_nov20 <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 10)
+results_nov20 <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5)
 
-results_dec20 <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 10)
-
-results_rep_nov20 <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5)
-
-results_rep_dec20 <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5)
-
-
+results_dec20 <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5)
 
 results_jan21 <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat, steps = 5)
 results_feb21 <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat, steps = 5)
@@ -1764,102 +1908,125 @@ data_list2_df <- data.frame(
 ```
 
 ```{r}
-random_party_walk <- function(graph, start, steps, weights, party_type, mode = "out", stuck = "return") {
-  # Initialize the current node
-  current_node <- start
-  partition_switch <- FALSE
-  n_steps <- 0
-  n_steps_trapped <- 0
+analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 1) {
+  total_steps_needed <- vector()
+  total_trapped_steps <- vector()
+  total_n_part_shift <- 0
+  total_n_trapped <- 0
+  total_n_republican <- 0
+  total_n_democrat <- 0
+  total_n_politics <- 0
+  total_n_other <- 0
   
-  # Pre-fetch parties and names
-  node_parties <- V(graph)$party
-  node_names <- V(graph)$name
-  edge_weights <- E(graph)$weight
-  
-  # Function to fetch weights more efficiently
-  get_weights <- function(graph, current_node_index, neighbor_indices) {
-    edge_ids <- sapply(neighbor_indices, function(neighbor_index) {
-      get.edge.ids(graph, c(current_node_index, neighbor_index))
-    })
-    return(edge_weights[edge_ids])
-  }
-
-  # Perform the random walk
-  for (i in 1:steps) {
-    # Get neighbors of the current node based on the specified mode
-    node_neighbors <- neighbors(graph, current_node, mode = mode)
+  for (iter in 1:iterations) {
+    n_trapped <- 0
+    steps_needed <- vector(mode = "list", length = length(vertices))
+    trapped_steps <- list()
+    n_part_shift <- 0
+    n_other <- 0
+    n_politics <- 0
+    n_republican <- 0
+    n_democrat <- 0
     
-    # If there are no neighbors, return or break depending on the "stuck" parameter
-    if (length(node_neighbors) == 0) {
-      if (n_steps == 0) { # if first node was already an "isolate" (no outgoing edges)
-        return(NA)
+    for (i in vertices) {
+      n_steps_trapped <- 0
+      cat("\rIteration:", iter, "Vertex:", i, flush = TRUE)
+      start_node <- i
+      
+      output <- random_party_walk(
+        graph, start_node, steps = steps, weights = E(graph)$weight, party_type = party, mode = "out", stuck = "return"
+      )
+      
+      if (all(is.na(output))) {
+        next
       }
-      n_steps_trapped <- n_steps
-      n_steps <- 15
-      return(c(current_node, n_steps, n_steps_trapped))
-    }
-
-    # Convert neighbors to names and indices
-    node_neighbor_indices <- as.numeric(node_neighbors)
-    
-    # Fetch weights more efficiently
-    current_node_index <- which(node_names == current_node)
-    neighbor_weights <- get_weights(graph, current_node_index, node_neighbor_indices)
-    
-    # Check for valid weights and match length of weights with neighbors
-   # if (any(is.na(neighbor_weights)) || length(neighbor_weights) != length(node_neighbors)) {
-      #cat("Debug Info: Incorrect weights length\n")
-      #cat("node_neighbors length: ", length(node_neighbors), "\n")
-      #cat("neighbor_weights length: ", length(neighbor_weights), "\n")
-      #return(NA)
-    #}
-    
-    # Calculate sum of edge weights
-    sum_weights <- sum(neighbor_weights)
-    
-    # Normalize edge weights to obtain probabilities
-    probabilities <- neighbor_weights / sum_weights
-    
-    # Debugging prints to validate lengths
-   # cat("Debug Info: Step ", i, "\n")
-    #cat("node_neighbors: ", node_neighbors, "\n")
-    #cat("neighbor_weights: ", neighbor_weights, "\n")
-   # cat("probabilities: ", probabilities, "\n")
-    
-    # Sample a neighbor using the probabilities
-    next_node_index <- sample(length(node_neighbors), 1, prob = probabilities)
-    next_node <- node_neighbors[next_node_index]
-    
-    next_node_name <- as.character(node_names[next_node])
-    
-    # Update the current node
-    current_node <- next_node_name
-    
-    n_steps <- n_steps + 1
-    
-    current_node_index <- which(node_names == current_node)
-    
-    if (party_type == "Democrat") {
-      if (node_parties[current_node_index] == "Republican") {
-        partition_switch <- TRUE
-        break  # Stop the random walk if the current node is Republican
+      
+      final_node <- output[1]
+      steps_taken <- as.numeric(output[2])
+      n_steps_trapped <- as.numeric(output[3])
+      
+      if (n_steps_trapped > 0) {
+        n_trapped <- n_trapped + 1
+        trapped_steps[[length(trapped_steps) + 1]] <- n_steps_trapped
       }
-    } else if (party_type == "Republican") {
-      if (node_parties[current_node_index] == "Democrat") {
-        partition_switch <- TRUE
-        break  # Stop the random walk if the current node is Democrat
+      
+      final_node_index <- which(V(graph)$name == final_node)
+      final_node_party <- V(graph)$party[final_node_index]
+      
+      if (final_node_party == "Republican") {
+        n_republican <- n_republican + 1
+      } else if (final_node_party == "Democrat") {
+        n_democrat <- n_democrat + 1
+      } else if (final_node_party == "Politics") {
+        n_politics <- n_politics + 1
+      } else {
+        n_other <- n_other + 1
+      }
+      
+      steps_needed[[i]] <- steps_taken
+      
+      if (party == "Democrat") {
+        if (final_node_party == "Republican") {
+          n_part_shift <- n_part_shift + 1
+        }
+      } else if (party == "Republican") {
+        if (final_node_party == "Democrat") {
+          n_part_shift <- n_part_shift + 1
+        }
       }
     }
+    
+    # Remove NULL, 15, and 20 values from steps_needed
+    steps_needed <- steps_needed[!sapply(steps_needed, is.null)]
+    steps_needed <- steps_needed[steps_needed != 15]
+    steps_needed <- steps_needed[steps_needed != 20]
+    
+    # Get average
+    steps_needed <- unlist(steps_needed)
+    mean_steps <- mean(steps_needed, na.rm = TRUE)
+    
+    # Get average of trapped steps
+    trapped_steps <- unlist(trapped_steps)
+    mean_trapped_steps <- mean(trapped_steps, na.rm = TRUE)
+    
+    # Aggregate results
+    total_steps_needed <- c(total_steps_needed, steps_needed)
+    total_trapped_steps <- c(total_trapped_steps, trapped_steps)
+    total_n_part_shift <- total_n_part_shift + n_part_shift
+    total_n_trapped <- total_n_trapped + n_trapped
+    total_n_republican <- total_n_republican + n_republican
+    total_n_democrat <- total_n_democrat + n_democrat
+    total_n_politics <- total_n_politics + n_politics
+    total_n_other <- total_n_other + n_other
   }
   
-  if (partition_switch == FALSE) {
-    n_steps <- 20
-  }
+  # Calculate final averages
+  final_mean_steps <- mean(total_steps_needed, na.rm = TRUE)
+  final_mean_trapped_steps <- mean(total_trapped_steps, na.rm = TRUE)
   
-  # Return the final node reached by the random walk
-  return(c(current_node, n_steps, n_steps_trapped))
+  return(list(
+    steps = final_mean_steps, 
+    n_part_shift = total_n_part_shift, 
+    n_trapped = total_n_trapped, 
+    mean_steps_trapped = final_mean_trapped_steps, 
+    n_republican = total_n_republican, 
+    n_democrat = total_n_democrat, 
+    n_politics = total_n_politics, 
+    n_other = total_n_other
+  ))
 }
+
+# get a random sample of 100 pages
+set.seed(42)
+# get all democrat pages of the network
+page_names <- V(net_clicknov20)$name[V(net_clicknov20)$party == "Democrat"]
+page_names_d <- sample(page_names, 100)
+
+results_nov20 <- analyze_party_walk(net_clicknov20, "Democrat", page_names_d, steps = 5, iterations = 10)
+
+results_dec20 <- analyze_party_walk(net_clickdec20, "Democrat", page_names_d, steps = 10, iterations = 10)
 ```
+
 
 
 ```{r rw_visualisation}
