@@ -470,8 +470,8 @@ net_clicknov21 <- update_graph_with_affiliations(net_clicknov21)
 
 ```{r}
 # save RData image
-save.image("data/click_networks2.RData")
-load("data/click_networks2.RData")
+save.image("data/click_networks.RData")
+load("data/click_networks.RData")
 ```
 
 ```{r}
@@ -530,7 +530,7 @@ new_affiliations <- data.frame(Element = c("2004_united_states_presidential_elec
 
 # extend the data frame to change the following party attribute to "Other": "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert"
 
-new_affiliations <- rbind(new_affiliations, data.frame(Element = c("call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady"), Category = "Other"))
+new_affiliations <- rbind(new_affiliations, data.frame(Element = c("call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady", "john_wane_gacy"), Category = "Other"))
 
 new_affiliations <- rbind(new_affiliations, data.frame(Element = "hillary_clinton", Category = "Democrat"))
 
@@ -747,7 +747,7 @@ mean(total_rep_dem_pages$TotalRepDemPages)
 ```
 
 
-```{r}
+```{r gephi_data}
 net_clicknov20_test <- net_clicknov20
 
 net_clicknov20_test <- delete_vertices(net_clicknov20, which(V(net_clicknov20)$party == "Other"))
@@ -788,7 +788,7 @@ node_data$color <- ifelse(node_data$Label == "Republican", "#FF0000", ifelse(nod
 write.csv(node_data, "data/node_attributes.csv", row.names = FALSE)
 ```
 
-```{r}
+```{r gephi_data2}
 net_clicknov20_boundary <- net_clicknov20_test
 
 # remove all nodes that do not have an edge to the opposing party
@@ -1516,6 +1516,19 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
   n_steps <- 0
   n_steps_trapped <- 0
   
+  node_parties <- V(graph)$party
+  node_names <- V(graph)$name
+  edge_weights <- E(graph)$weight
+
+# Function to fetch weights more efficiently
+  get_weights <- function(graph, current_node, neighbors) {
+    current_node_index <- which(node_names == current_node)
+    neighbor_indices <- as.numeric(neighbors) # Convert to numeric indices
+    edge_ids <- get.edge.ids(
+      graph, c(rep(current_node_index, length(neighbor_indices)), neighbor_indices))
+    return(edge_weights[edge_ids])
+  }
+  
   # Perform the random walk
   for (i in 1:steps) {
     # Get neighbors of the current node based on the specified mode
@@ -1534,16 +1547,22 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
       n_steps <- 15
       return(c(current_node, n_steps, n_steps_trapped))
     }
+    
+    edge_weights <- get_weights(graph, current_node, node_neighbors)
+    
+    if (any(is.na(edge_weights))) {
+      return(NA)
+    }
 
     # Choose a random neighbor weighted by the edge weights
-    node_neighbor <- V(graph)$name[node_neighbors]
+    #node_neighbor <- V(graph)$name[node_neighbors]
     
-    edge_weights <- sapply(node_neighbor, function(neighbor) {
-      edge_index <- get.edge.ids(graph, c(current_node, neighbor))
-      E(graph)[edge_index]$weight
-    })
+    #edge_weights <- sapply(node_neighbor, function(neighbor) {
+      #edge_index <- get.edge.ids(graph, c(current_node, neighbor))
+      #E(graph)[edge_index]$weight
+    #})
     
-    if (class(edge_weights) == "list") {
+    #if (class(edge_weights) == "list") {
       # remove NULL values
       # edge_weights <- edge_weights[!sapply(edge_weights, is.null)]
       # remove NA values
@@ -1551,6 +1570,15 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
       # convert to numeric
       # edge_weights <- unlist(edge_weights)
       # edge_weights <- as.numeric(edge_weights)
+      #return(NA)
+    #}
+    
+        # Check for valid weights and match length of weights with neighbors
+    if (any(
+      is.na(edge_weights)) || length(edge_weights) != length(node_neighbors)) {
+      cat("Debug Info: Incorrect weights length\n")
+      cat("node_neighbors length: ", length(node_neighbors), "\n")
+      cat("neighbor_weights length: ", length(edge_weights), "\n")
       return(NA)
     }
     
@@ -1580,12 +1608,12 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
     
     if (party_type == "Democrat"){
      # Check if the current node has the desired party affiliation
-      if (V(graph)$party[current_node_index] == "Republican") {
+      if (node_parties[current_node_index] == "Republican") {
         partition_switch <- TRUE
         break  # Stop the random walk if the current node is Republican
       }
     } else if (party_type == "Republican") {
-      if (V(graph)$party[current_node_index] == "Democrat") {
+      if (node_parties[current_node_index] == "Democrat") {
         partition_switch <- TRUE
         break  # Stop the random walk if the current node is Democrat
       }
@@ -1619,8 +1647,6 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10) {
     output <- random_party_walk(
       graph, start_node, steps = steps, weights = E(graph)$weight, party_type = party, mode = "out", stuck = "return"
     )
-
-    print(output)
     
     if (all(is.na(output))) {
       next
@@ -1651,7 +1677,6 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10) {
     
     steps_needed[i] <- steps_taken
     
-    print(steps_needed)
     
     if (party == "Democrat"){
      # Check if the current node has the desired party affiliation
@@ -1684,14 +1709,18 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10) {
 }
 
 # analyse party walk for networks from august to march
-results_aug20 <- analyze_party_walk(net_clickaug20, "Democrat", iterations = 100, steps = 10)
-results_sep20 <- analyze_party_walk(net_clicksep20, "Democrat", iterations = 100, steps = 10)
-results_oct20 <- analyze_party_walk(net_clickoct20, "Democrat", iterations = 100, steps = 10)
-results_nov20 <- analyze_party_walk(net_clicknov20, "Democrat", iterations = 100, steps = 10)
-results_dec20 <- analyze_party_walk(net_clickdec20, "Democrat", iterations = 100, steps = 10)
-results_jan21 <- analyze_party_walk(net_clickjan21, "Democrat", iterations = 100, steps = 10)
-results_feb21 <- analyze_party_walk(net_clickfeb21, "Democrat", iterations = 100, steps = 10)
-results_mar21 <- analyze_party_walk(net_clickmar21, "Democrat", iterations = 100, steps = 10)
+results_nov20 <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 10)
+
+results_dec20 <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 10)
+
+results_rep_nov20 <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5)
+
+results_rep_dec20 <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5)
+
+
+
+results_jan21 <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat, steps = 5)
+results_feb21 <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat, steps = 5)
 
 data_list1 <- list(
   results_aug20, results_sep20, results_oct20, results_nov20, results_dec20, results_jan21, results_feb21, results_mar21)
@@ -1709,19 +1738,13 @@ data_list1_df <- data.frame(
   n_other = sapply(data_list1, function(x) x$n_other)
 )
 
-# same procedure for Republicans
-results_rep_aug20 <- analyze_party_walk(net_clickaug20, "Republican", iterations = 100, steps = 10)
-
-results_rep_sep20 <- analyze_party_walk(net_clicksep20, "Republican", page_names_republican, steps = 5)
-
-results_rep_oct20 <- analyze_party_walk(net_clickoct20, "Republican", iterations = 100, steps = 10)
-
 results_rep_nov20 <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5)
 
-results_rep_dec20 <- analyze_party_walk(net_clickdec20, "Republican", iterations = 100, steps = 10)
-results_rep_jan21 <- analyze_party_walk(net_clickjan21, "Republican", iterations = 100, steps = 10)
-results_rep_feb21 <- analyze_party_walk(net_clickfeb21, "Republican", iterations = 100, steps = 10)
-results_rep_mar21 <- analyze_party_walk(net_clickmar21, "Republican", iterations = 100, steps = 10)
+results_rep_dec20 <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5)
+
+results_rep_jan21 <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican, steps = 5)
+
+results_rep_feb21 <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican, steps = 5)
 
 data_list2 <- list(
   results_rep_aug20, results_rep_sep20, results_rep_oct20, results_rep_nov20, results_rep_dec20, results_rep_jan21, results_rep_feb21, results_rep_mar21)
@@ -1738,6 +1761,104 @@ data_list2_df <- data.frame(
   n_politics = sapply(data_list2, function(x) x$n_politics),
   n_other = sapply(data_list2, function(x) x$n_other)
 )
+```
+
+```{r}
+random_party_walk <- function(graph, start, steps, weights, party_type, mode = "out", stuck = "return") {
+  # Initialize the current node
+  current_node <- start
+  partition_switch <- FALSE
+  n_steps <- 0
+  n_steps_trapped <- 0
+  
+  # Pre-fetch parties and names
+  node_parties <- V(graph)$party
+  node_names <- V(graph)$name
+  edge_weights <- E(graph)$weight
+  
+  # Function to fetch weights more efficiently
+  get_weights <- function(graph, current_node_index, neighbor_indices) {
+    edge_ids <- sapply(neighbor_indices, function(neighbor_index) {
+      get.edge.ids(graph, c(current_node_index, neighbor_index))
+    })
+    return(edge_weights[edge_ids])
+  }
+
+  # Perform the random walk
+  for (i in 1:steps) {
+    # Get neighbors of the current node based on the specified mode
+    node_neighbors <- neighbors(graph, current_node, mode = mode)
+    
+    # If there are no neighbors, return or break depending on the "stuck" parameter
+    if (length(node_neighbors) == 0) {
+      if (n_steps == 0) { # if first node was already an "isolate" (no outgoing edges)
+        return(NA)
+      }
+      n_steps_trapped <- n_steps
+      n_steps <- 15
+      return(c(current_node, n_steps, n_steps_trapped))
+    }
+
+    # Convert neighbors to names and indices
+    node_neighbor_indices <- as.numeric(node_neighbors)
+    
+    # Fetch weights more efficiently
+    current_node_index <- which(node_names == current_node)
+    neighbor_weights <- get_weights(graph, current_node_index, node_neighbor_indices)
+    
+    # Check for valid weights and match length of weights with neighbors
+   # if (any(is.na(neighbor_weights)) || length(neighbor_weights) != length(node_neighbors)) {
+      #cat("Debug Info: Incorrect weights length\n")
+      #cat("node_neighbors length: ", length(node_neighbors), "\n")
+      #cat("neighbor_weights length: ", length(neighbor_weights), "\n")
+      #return(NA)
+    #}
+    
+    # Calculate sum of edge weights
+    sum_weights <- sum(neighbor_weights)
+    
+    # Normalize edge weights to obtain probabilities
+    probabilities <- neighbor_weights / sum_weights
+    
+    # Debugging prints to validate lengths
+   # cat("Debug Info: Step ", i, "\n")
+    #cat("node_neighbors: ", node_neighbors, "\n")
+    #cat("neighbor_weights: ", neighbor_weights, "\n")
+   # cat("probabilities: ", probabilities, "\n")
+    
+    # Sample a neighbor using the probabilities
+    next_node_index <- sample(length(node_neighbors), 1, prob = probabilities)
+    next_node <- node_neighbors[next_node_index]
+    
+    next_node_name <- as.character(node_names[next_node])
+    
+    # Update the current node
+    current_node <- next_node_name
+    
+    n_steps <- n_steps + 1
+    
+    current_node_index <- which(node_names == current_node)
+    
+    if (party_type == "Democrat") {
+      if (node_parties[current_node_index] == "Republican") {
+        partition_switch <- TRUE
+        break  # Stop the random walk if the current node is Republican
+      }
+    } else if (party_type == "Republican") {
+      if (node_parties[current_node_index] == "Democrat") {
+        partition_switch <- TRUE
+        break  # Stop the random walk if the current node is Democrat
+      }
+    }
+  }
+  
+  if (partition_switch == FALSE) {
+    n_steps <- 20
+  }
+  
+  # Return the final node reached by the random walk
+  return(c(current_node, n_steps, n_steps_trapped))
+}
 ```
 
 
