@@ -526,11 +526,11 @@ net_clicknov21 <- update_double_party_classes(net_clicknov21, affiliations)
 
 # create data frame with the elements and their new party attribute
 new_affiliations <- data.frame(Element = c("2004_united_states_presidential_election", "timeline_of_russian_interference_in_the_2016_united_states_elections", "1984_united_states_presidential_election", "1988_united_states_presidential_election", "1980_united_states_presidential_election", "1976_united_states_presidential_election", "1964_united_states_presidential_election", "faithless_electors_in_the_2016_united_states_presidential_election", "1860_united_states_presidential_election", "1864_united_states_presidential_election", "1972_united_states_presidential_election", "1936_united_states_presidential_election", "1944_united_states_presidential_election", "1940_united_states_presidential_election", "1932_united_states_presidential_election", "1928_united_states_presidential_election", "1920_united_states_presidential_election", "iraq_war", "gulf_war"),
-  Category = "Politics")
+  Category = "Other")
 
 # extend the data frame to change the following party attribute to "Other": "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert"
 
-new_affiliations <- rbind(new_affiliations, data.frame(Element = c("call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady", "john_wane_gacy", "ken_jennings", "beyoncé", "stephen_king"), Category = "Other"))
+new_affiliations <- rbind(new_affiliations, data.frame(Element = c("call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady", "john_wane_gacy", "ken_jennings", "beyoncé", "stephen_king", "jennifer_garner", "gilian_anderson"), Category = "Other"))
 
 new_affiliations <- rbind(new_affiliations, data.frame(Element = "hillary_clinton", Category = "Democrat"))
 
@@ -559,6 +559,34 @@ net_clickaug21 <- update_double_party_classes(net_clickaug21, new_affiliations)
 net_clicksep21 <- update_double_party_classes(net_clicksep21, new_affiliations)
 net_clickoct21 <- update_double_party_classes(net_clickoct21, new_affiliations)
 net_clicknov21 <- update_double_party_classes(net_clicknov21, new_affiliations)
+
+
+# for all of the networks, if the party attribute is "Politics", change it to "Other"
+net_clicknov19$party[net_clicknov19$party == "Politics"] <- "Other"
+net_clickdec19$party[net_clickdec19$party == "Politics"] <- "Other"
+net_clickjan20$party[net_clickjan20$party == "Politics"] <- "Other"
+net_clickfeb20$party[net_clickfeb20$party == "Politics"] <- "Other"
+net_clickmar20$party[net_clickmar20$party == "Politics"] <- "Other"
+net_clickapr20$party[net_clickapr20$party == "Politics"] <- "Other"
+net_clickmay20$party[net_clickmay20$party == "Politics"] <- "Other"
+net_clickjun20$party[net_clickjun20$party == "Politics"] <- "Other"
+net_clickjul20$party[net_clickjul20$party == "Politics"] <- "Other"
+net_clickaug20$party[net_clickaug20$party == "Politics"] <- "Other"
+net_clicksep20$party[net_clicksep20$party == "Politics"] <- "Other"
+net_clickoct20$party[net_clickoct20$party == "Politics"] <- "Other"
+net_clicknov20$party[net_clicknov20$party == "Politics"] <- "Other"
+net_clickdec20$party[net_clickdec20$party == "Politics"] <- "Other"
+net_clickjan21$party[net_clickjan21$party == "Politics"] <- "Other"
+net_clickfeb21$party[net_clickfeb21$party == "Politics"] <- "Other"
+net_clickmar21$party[net_clickmar21$party == "Politics"] <- "Other"
+net_clickapr21$party[net_clickapr21$party == "Politics"] <- "Other"
+net_clickmay21$party[net_clickmay21$party == "Politics"] <- "Other"
+net_clickjun21$party[net_clickjun21$party == "Politics"] <- "Other"
+net_clickjul21$party[net_clickjul21$party == "Politics"] <- "Other"
+net_clickaug21$party[net_clickaug21$party == "Politics"] <- "Other"
+net_clicksep21$party[net_clicksep21$party == "Politics"] <- "Other"
+net_clickoct21$party[net_clickoct21$party == "Politics"] <- "Other"
+net_clicknov21$party[net_clicknov21$party == "Politics"] <- "Other"
 ```
 
 
@@ -1390,7 +1418,10 @@ page_views_democrat_filtered <- page_views_democrat_filtered[order(unlist(page_v
 # extract page names of the first 1000 pages
 page_names_republican <- names(page_views_republican_filtered)[1:100]
 page_names_democrat <- names(page_views_democrat_filtered)[1:100]
+```
 
+
+```{r page_views_dec}
 # loop through all republican pages
 page_views_republican_dec <- list()
 for (i in republican_pages) {
@@ -1420,7 +1451,7 @@ updated_rep_pv_list_dec <- list()
 # Iterate through the original list
 for (original_name in names(page_views_republican_dec)) {
   # Retrieve the value associated with the original name
-  page_views_dec <- page_views_republican[[original_name]]
+  page_views_dec <- page_views_republican_dec[[original_name]]
 
   # Standardize the name
   standardized_name <- tolower(original_name)
@@ -1435,7 +1466,7 @@ updated_dem_pv_list_dec <- list()
 
 for (original_name in names(page_views_democrat_dec)) {
   # Retrieve the value associated with the original name
-  page_views_dec <- page_views_democrat[[original_name]]
+  page_views_dec <- page_views_democrat_dec[[original_name]]
 
   # Standardize the name
   standardized_name <- tolower(original_name)
@@ -1506,7 +1537,7 @@ updated_rep_pv_list_jan <- list()
 # Iterate through the original list
 for (original_name in names(page_views_republican_jan)) {
   # Retrieve the value associated with the original name
-  page_views_jan_rep <- page_views_republican[[original_name]]
+  page_views_jan_rep <- page_views_republican_jan[[original_name]]
 
   # Standardize the name
   standardized_name <- tolower(original_name)
@@ -1521,7 +1552,7 @@ updated_dem_pv_list_jan <- list()
 
 for (original_name in names(page_views_democrat_jan)) {
   # Retrieve the value associated with the original name
-  page_views_jan_dem <- page_views_democrat[[original_name]]
+  page_views_jan_dem <- page_views_democrat_jan[[original_name]]
 
   # Standardize the name
   standardized_name <- tolower(original_name)
@@ -1535,16 +1566,18 @@ for (original_name in names(page_views_democrat_jan)) {
 # Extract names from the network vertices
 network_names_jan <- V(net_clickjan21_filtered)$name
 
-matched_names_rep_jan <- network_names_dec[network_names_jan %in% names(updated_rep_pv_list_jan)]
+matched_names_rep_jan <- network_names_jan[network_names_jan %in% names(updated_rep_pv_list_jan)]
 page_views_republican_filtered_jan <- updated_rep_pv_list_jan[matched_names_rep_jan]
 
 matched_names_dem_jan <- network_names_jan[network_names_jan %in% names(updated_dem_pv_list_jan)]
 page_views_democrat_filtered_jan <- updated_dem_pv_list_jan[matched_names_dem_jan]
 
 # order by descending page views
-page_views_republican_filtered_jan <- page_views_republican_filtered_jan[order(unlist(page_views_republican_filtered_jan), decreasing = TRUE)]
+page_views_republican_filtered_jan <- page_views_republican_filtered_jan[order(
+  unlist(page_views_republican_filtered_jan), decreasing = TRUE)]
 
-page_views_democrat_filtered_jan <- page_views_democrat_filtered_jan[order(unlist(page_views_democrat_filtered_jan), decreasing = TRUE)]
+page_views_democrat_filtered_jan <- page_views_democrat_filtered_jan[order(
+  unlist(page_views_democrat_filtered_jan), decreasing = TRUE)]
 
 # extract na values
 # page_views_na <- page_views_republican_filtered[is.na(page_views_republican_filtered)]
@@ -1560,8 +1593,32 @@ page_names_democrat_jan <- names(page_views_democrat_filtered_jan)[1:100]
 
 intersect(common_pages_rep, page_names_republican_jan)
 intersect(common_pages_dem, page_names_democrat_jan)
+
+page_views_republican_filtered_jan[1:100]
 ```
 
+```{r}
+page_views_df <- data.frame(
+  Page = names(page_views_republican_filtered_jan),
+  Views = unlist(page_views_republican_filtered_jan)
+)
+
+# remove pages with NA values
+page_views_df <- page_views_df[complete.cases(page_views_df), ]
+
+# order by views, ascending
+page_views_df <- page_views_df[order(page_views_df$Views, decreasing = FALSE), ]
+
+ggplot(page_views_df, aes(x = Views)) +
+  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") +
+  scale_x_log10() +
+  theme_minimal() +
+  labs(title = "Distribution of Page Views",
+       x = "Page Views (log scale)",
+       y = "Frequency")
+
+head(page_views_df)
+```
 
 
 ```{r page_views_feb}
@@ -1594,7 +1651,7 @@ updated_rep_pv_list_feb <- list()
 # Iterate through the original list
 for (original_name in names(page_views_republican_feb)) {
   # Retrieve the value associated with the original name
-  page_views_feb <- page_views_republican[[original_name]]
+  page_views_feb <- page_views_republican_feb[[original_name]]
 
   # Standardize the name
   standardized_name <- tolower(original_name)
@@ -1609,7 +1666,7 @@ updated_dem_pv_list_feb <- list()
 
 for (original_name in names(page_views_democrat_feb)) {
   # Retrieve the value associated with the original name
-  page_views_feb <- page_views_democrat[[original_name]]
+  page_views_feb <- page_views_democrat_feb[[original_name]]
 
   # Standardize the name
   standardized_name <- tolower(original_name)
@@ -1623,16 +1680,18 @@ for (original_name in names(page_views_democrat_feb)) {
 # Extract names from the network vertices
 network_names_feb <- V(net_clickfeb21_filtered)$name
 
-matched_names_rep_feb <- network_names_dec[network_names_feb %in% names(updated_rep_pv_list_feb)]
+matched_names_rep_feb <- network_names_feb[network_names_feb %in% names(updated_rep_pv_list_feb)]
 page_views_republican_filtered_feb <- updated_rep_pv_list_feb[matched_names_rep_feb]
 
 matched_names_dem_feb <- network_names_feb[network_names_feb %in% names(updated_dem_pv_list_feb)]
 page_views_democrat_filtered_feb <- updated_dem_pv_list_feb[matched_names_dem_feb]
 
 # order by descending page views
-page_views_republican_filtered_feb <- page_views_republican_filtered_feb[order(unlist(page_views_republican_filtered_feb), decreasing = TRUE)]
+page_views_republican_filtered_feb <- page_views_republican_filtered_feb[order(
+  unlist(page_views_republican_filtered_feb), decreasing = TRUE)]
 
-page_views_democrat_filtered_feb <- page_views_democrat_filtered_feb[order(unlist(page_views_democrat_filtered_feb), decreasing = TRUE)]
+page_views_democrat_filtered_feb <- page_views_democrat_filtered_feb[order(
+  unlist(page_views_democrat_filtered_feb), decreasing = TRUE)]
 
 # extract na values
 # page_views_na <- page_views_republican_filtered[is.na(page_views_republican_filtered)]
@@ -1780,135 +1839,6 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
 }
 
 analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 1) {
-  n_trapped <- 0
-  steps_needed <- vector(mode = "list", length = length(vertices))
-  trapped_steps <- list()
-  n_part_shift <- 0
-  n_other <- 0
-  n_politics <- 0
-  n_republican <- 0
-  n_democrat <- 0
-  
-  for (i in vertices) {
-    n_steps_trapped <- 0
-    cat("\r", i, flush = TRUE)
-    party_vertices <- which(V(graph)$party == party)
-    start_node <- i
-    
-    output <- random_party_walk(
-      graph, start_node, steps = steps, weights = E(graph)$weight, party_type = party, mode = "out", stuck = "return"
-    )
-    
-    if (all(is.na(output))) {
-      next
-    }
-    
-    final_node <- output[1]
-    steps_taken <- as.numeric(output[2])
-    n_steps_trapped <- as.numeric(output[3])
-    
-    if (n_steps_trapped > 0) {
-      n_trapped <- n_trapped + 1
-      trapped_steps[[length(trapped_steps) + 1]] <- n_steps_trapped
-    }
-    
-    
-    final_node_index <- which(V(graph)$name == final_node)
-    final_node_party <- V(graph)$party[final_node_index]
-    
-    if (final_node_party == "Republican") {
-      n_republican <- n_republican + 1
-    } else if (final_node_party == "Democrat") {
-      n_democrat <- n_democrat + 1
-    } else if (final_node_party == "Politics") {
-      n_politics <- n_politics + 1
-    } else {
-      n_other <- n_other + 1
-    }
-    
-    steps_needed[i] <- steps_taken
-    
-    
-    if (party == "Democrat"){
-     # Check if the current node has the desired party affiliation
-      if (final_node_party == "Republican") {
-        n_part_shift <- n_part_shift + 1
-      }
-    } else if (party == "Republican") {
-      if (final_node_party == "Democrat") {
-        n_part_shift <- n_part_shift + 1
-      }
-    }
-  }
-  
-  # remove NULL, 15 and 20 values from steps_needed
-  steps_needed <- steps_needed[!sapply(steps_needed, is.null)]
-  steps_needed <- steps_needed[steps_needed != 15]
-  steps_needed <- steps_needed[steps_needed != 20]
-  
-  # get average
-  steps_needed <- unlist(steps_needed)
-  mean_steps <- mean(steps_needed, na.rm = TRUE)
-  
-  # get average of trapped steps
-  trapped_steps <- unlist(trapped_steps)
-  mean_trapped_steps <- mean(trapped_steps, na.rm = TRUE)
-  
-  return(list(
-    steps = mean_steps, n_part_shift = n_part_shift, n_trapped = n_trapped, mean_steps_trapped = mean_trapped_steps, n_republican = n_republican, n_democrat = n_democrat, n_politics = n_politics, n_other = n_other))
-}
-
-# analyse party walk for networks from august to march
-results_nov20 <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5)
-
-results_dec20 <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5)
-
-results_jan21 <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat, steps = 5)
-results_feb21 <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat, steps = 5)
-
-data_list1 <- list(
-  results_aug20, results_sep20, results_oct20, results_nov20, results_dec20, results_jan21, results_feb21, results_mar21)
-
-# make data frame
-data_list1_df <- data.frame(
-  Index = 1:length(data_list1),
-  mean_steps = sapply(data_list1, function(x) x$steps),
-  n_part_shift = sapply(data_list1, function(x) x$n_part_shift),
-  n_trapped = sapply(data_list1, function(x) x$n_trapped),
-  mean_steps_trapped = sapply(data_list1, function(x) x$mean_steps_trapped),
-  n_republican = sapply(data_list1, function(x) x$n_republican),
-  n_democrat = sapply(data_list1, function(x) x$n_democrat),
-  n_politics = sapply(data_list1, function(x) x$n_politics),
-  n_other = sapply(data_list1, function(x) x$n_other)
-)
-
-results_rep_nov20 <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5)
-
-results_rep_dec20 <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5)
-
-results_rep_jan21 <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican, steps = 5)
-
-results_rep_feb21 <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican, steps = 5)
-
-data_list2 <- list(
-  results_rep_aug20, results_rep_sep20, results_rep_oct20, results_rep_nov20, results_rep_dec20, results_rep_jan21, results_rep_feb21, results_rep_mar21)
-
-# make data frame
-data_list2_df <- data.frame(
-  Index = 1:length(data_list2),
-  mean_steps = sapply(data_list2, function(x) x$steps),
-  n_part_shift = sapply(data_list2, function(x) x$n_part_shift),
-  n_trapped = sapply(data_list2, function(x) x$n_trapped),
-  mean_steps_trapped = sapply(data_list2, function(x) x$mean_steps_trapped),
-  n_republican = sapply(data_list2, function(x) x$n_republican),
-  n_democrat = sapply(data_list2, function(x) x$n_democrat),
-  n_politics = sapply(data_list2, function(x) x$n_politics),
-  n_other = sapply(data_list2, function(x) x$n_other)
-)
-```
-
-```{r}
-analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 1) {
   total_steps_needed <- vector()
   total_trapped_steps <- vector()
   total_n_part_shift <- 0
@@ -2016,17 +1946,199 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
   ))
 }
 
-# get a random sample of 100 pages
-set.seed(42)
-# get all democrat pages of the network
-page_names <- V(net_clicknov20)$name[V(net_clicknov20)$party == "Democrat"]
-page_names_d <- sample(page_names, 100)
+# analyse party walk for networks from august to march
+results_nov20 <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5)
 
-results_nov20 <- analyze_party_walk(net_clicknov20, "Democrat", page_names_d, steps = 5, iterations = 10)
+results_dec20 <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5)
 
-results_dec20 <- analyze_party_walk(net_clickdec20, "Democrat", page_names_d, steps = 10, iterations = 10)
+results_jan21 <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 5)
+
+results_feb21 <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat, steps = 5)
+
+data_list1 <- list(
+  results_aug20, results_sep20, results_oct20, results_nov20, results_dec20, results_jan21, results_feb21, results_mar21)
+
+# make data frame
+data_list1_df <- data.frame(
+  Index = 1:length(data_list1),
+  mean_steps = sapply(data_list1, function(x) x$steps),
+  n_part_shift = sapply(data_list1, function(x) x$n_part_shift),
+  n_trapped = sapply(data_list1, function(x) x$n_trapped),
+  mean_steps_trapped = sapply(data_list1, function(x) x$mean_steps_trapped),
+  n_republican = sapply(data_list1, function(x) x$n_republican),
+  n_democrat = sapply(data_list1, function(x) x$n_democrat),
+  n_politics = sapply(data_list1, function(x) x$n_politics),
+  n_other = sapply(data_list1, function(x) x$n_other)
+)
+
+results_rep_nov20 <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5)
+
+results_rep_dec20 <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5)
+
+results_rep_jan21 <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 5)
+
+results_rep_feb21 <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican, steps = 5)
+
+data_list2 <- list(
+  results_rep_aug20, results_rep_sep20, results_rep_oct20, results_rep_nov20, results_rep_dec20, results_rep_jan21, results_rep_feb21, results_rep_mar21)
+
+# make data frame
+data_list2_df <- data.frame(
+  Index = 1:length(data_list2),
+  mean_steps = sapply(data_list2, function(x) x$steps),
+  n_part_shift = sapply(data_list2, function(x) x$n_part_shift),
+  n_trapped = sapply(data_list2, function(x) x$n_trapped),
+  mean_steps_trapped = sapply(data_list2, function(x) x$mean_steps_trapped),
+  n_republican = sapply(data_list2, function(x) x$n_republican),
+  n_democrat = sapply(data_list2, function(x) x$n_democrat),
+  n_politics = sapply(data_list2, function(x) x$n_politics),
+  n_other = sapply(data_list2, function(x) x$n_other)
+)
 ```
+```{r}
+analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 1) {
+  total_steps_needed <- vector()
+  total_trapped_steps <- vector()
+  total_n_part_shift <- 0
+  total_n_trapped <- 0
+  total_n_republican <- 0
+  total_n_democrat <- 0
+  total_n_politics <- 0
+  total_n_other <- 0
+  
+  # Initialize counters for the number of steps needed for a partition shift
+  total_n_of_shift_steps_1 <- 0
+  total_n_of_shift_steps_2 <- 0
+  total_n_of_shift_steps_3 <- 0
+  total_n_of_shift_steps_4 <- 0
+  total_n_of_shift_steps_5 <- 0
+  
+  for (iter in 1:iterations) {
+    n_trapped <- 0
+    steps_needed <- vector(mode = "list", length = length(vertices))
+    trapped_steps <- list()
+    n_part_shift <- 0
+    n_other <- 0
+    n_politics <- 0
+    n_republican <- 0
+    n_democrat <- 0
+    
+    # Initialize counters for each iteration
+    n_of_shift_steps_1 <- 0
+    n_of_shift_steps_2 <- 0
+    n_of_shift_steps_3 <- 0
+    n_of_shift_steps_4 <- 0
+    n_of_shift_steps_5 <- 0
+    
+    for (i in vertices) {
+      n_steps_trapped <- 0
+      cat("\rIteration:", iter, "Vertex:", i, flush = TRUE)
+      start_node <- i
+      
+      output <- random_party_walk(
+        graph, start_node, steps = steps, weights = E(graph)$weight, party_type = party, mode = "out", stuck = "return"
+      )
+      
+      if (all(is.na(output))) {
+        next
+      }
+      
+      final_node <- output[1]
+      steps_taken <- as.numeric(output[2])
+      n_steps_trapped <- as.numeric(output[3])
+      
+      if (n_steps_trapped > 0) {
+        n_trapped <- n_trapped + 1
+        trapped_steps[[length(trapped_steps) + 1]] <- n_steps_trapped
+      }
+      
+      final_node_index <- match(final_node, V(graph)$name)
+      final_node_party <- V(graph)$party[final_node_index]
+      
+      if (final_node_party == "Republican") {
+        n_republican <- n_republican + 1
+      } else if (final_node_party == "Democrat") {
+        n_democrat <- n_democrat + 1
+      } else if (final_node_party == "Politics") {
+        n_politics <- n_politics + 1
+      } else {
+        n_other <- n_other + 1
+      }
+      
+      steps_needed[[i]] <- steps_taken
+      
+      if (party == "Democrat" && final_node_party == "Republican") {
+        n_part_shift <- n_part_shift + 1
+        if (steps_taken == 1) n_of_shift_steps_1 <- n_of_shift_steps_1 + 1
+        if (steps_taken == 2) n_of_shift_steps_2 <- n_of_shift_steps_2 + 1
+        if (steps_taken == 3) n_of_shift_steps_3 <- n_of_shift_steps_3 + 1
+        if (steps_taken == 4) n_of_shift_steps_4 <- n_of_shift_steps_4 + 1
+        if (steps_taken == 5) n_of_shift_steps_5 <- n_of_shift_steps_5 + 1
+      } else if (party == "Republican" && final_node_party == "Democrat") {
+        n_part_shift <- n_part_shift + 1
+        if (steps_taken == 1) n_of_shift_steps_1 <- n_of_shift_steps_1 + 1
+        if (steps_taken == 2) n_of_shift_steps_2 <- n_of_shift_steps_2 + 1
+        if (steps_taken == 3) n_of_shift_steps_3 <- n_of_shift_steps_3 + 1
+        if (steps_taken == 4) n_of_shift_steps_4 <- n_of_shift_steps_4 + 1
+        if (steps_taken == 5) n_of_shift_steps_5 <- n_of_shift_steps_5 + 1
+      }
+    }
+    
+    # Remove NULL, 15, and 20 values from steps_needed
+    steps_needed <- steps_needed[!sapply(steps_needed, is.null)]
+    steps_needed <- steps_needed[steps_needed != 15]
+    steps_needed <- steps_needed[steps_needed != 20]
+    
+    # Get average
+    steps_needed <- unlist(steps_needed)
+    mean_steps <- mean(steps_needed, na.rm = TRUE)
+    
+    # Get average of trapped steps
+    trapped_steps <- unlist(trapped_steps)
+    mean_trapped_steps <- mean(trapped_steps, na.rm = TRUE)
+    
+    # Aggregate results
+    total_steps_needed <- c(total_steps_needed, steps_needed)
+    total_trapped_steps <- c(total_trapped_steps, trapped_steps)
+    total_n_part_shift <- total_n_part_shift + n_part_shift
+    total_n_trapped <- total_n_trapped + n_trapped
+    total_n_republican <- total_n_republican + n_republican
+    total_n_democrat <- total_n_democrat + n_democrat
+    total_n_politics <- total_n_politics + n_politics
+    total_n_other <- total_n_other + n_other
+    
+    # Aggregate step counts for partition shifts
+    total_n_of_shift_steps_1 <- total_n_of_shift_steps_1 + n_of_shift_steps_1
+    total_n_of_shift_steps_2 <- total_n_of_shift_steps_2 + n_of_shift_steps_2
+    total_n_of_shift_steps_3 <- total_n_of_shift_steps_3 + n_of_shift_steps_3
+    total_n_of_shift_steps_4 <- total_n_of_shift_steps_4 + n_of_shift_steps_4
+    total_n_of_shift_steps_5 <- total_n_of_shift_steps_5 + n_of_shift_steps_5
+  }
+  
+  # Calculate final averages
+  final_mean_steps <- mean(total_steps_needed, na.rm = TRUE)
+  final_mean_trapped_steps <- mean(total_trapped_steps, na.rm = TRUE)
+  
+  return(list(
+    steps = final_mean_steps, 
+    n_part_shift = total_n_part_shift, 
+    n_trapped = total_n_trapped, 
+    mean_steps_trapped = final_mean_trapped_steps, 
+    n_republican = total_n_republican, 
+    n_democrat = total_n_democrat, 
+    n_politics = total_n_politics, 
+    n_other = total_n_other,
+    n_of_shift_steps_1 = total_n_of_shift_steps_1,
+    n_of_shift_steps_2 = total_n_of_shift_steps_2,
+    n_of_shift_steps_3 = total_n_of_shift_steps_3,
+    n_of_shift_steps_4 = total_n_of_shift_steps_4,
+    n_of_shift_steps_5 = total_n_of_shift_steps_5
+  ))
+}
 
+
+
+```
 
 
 ```{r rw_visualisation}
