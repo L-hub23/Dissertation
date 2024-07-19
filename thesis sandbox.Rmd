@@ -1139,14 +1139,7 @@ bp_sep21 <- calculate_spearman_correlation(net_clicksep21_filtered, membership_s
 bp_oct21 <- calculate_spearman_correlation(net_clickoct21_filtered, membership_oct21)
 
 bp_nov21 <- calculate_spearman_correlation(net_clicknov21_filtered, membership_nov21)
-```
 
-```{r}
-save.image("data/click_networks_bp.RData")
-```
-
-
-```{r random_networks}
 # generate random networks for each month
 random_net_nov19 <- sample_degseq(out.deg = degree(net_clicknov19_filtered, mode='out'), in.deg = degree(net_clicknov19_filtered, mode='in'), method = "simple")
 
@@ -1373,7 +1366,7 @@ matched_names_dem <- network_names[network_names %in% names(updated_dem_pv_list)
 page_views_democrat_filtered <- updated_dem_pv_list[matched_names_dem]
 
 pages_to_filter <- c(
-  "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady", "john_wane_gacy", "ken_jennings", "beyoncé", "stephen_king", "jennifer_garner", "gilian_anderson", "jodie_foster", "caitlyn_jenner", "anthony_fauci", "space_shuttle_columbia_disaster", "taxi_driver", "buzz_aldrin", "ted_bundy", "wyatt_earp", "gadsden_flag", "vermin_supreme", "alec_baldwin", "jennifer_garner", "ku_klux_klan", "stephen_king", "columbine_high_school_massacre", "jon_bon_jovi", "monica_lewinsky", "guantanamo_bay_detention_camp", "warren_buffett", "2012_benghazi_attack", "jefferson_davis", "chicago_seven", "aretha_franklin", "ken_jennings", "henry_fonda", "2004_united_states_presidential_election", "timeline_of_russian_interference_in_the_2016_united_states_elections", "1984_united_states_presidential_election", "1988_united_states_presidential_election", "1980_united_states_presidential_election", "1976_united_states_presidential_election", "1964_united_states_presidential_election", "faithless_electors_in_the_2016_united_states_presidential_election", "1860_united_states_presidential_election", "1864_united_states_presidential_election", "1972_united_states_presidential_election", "1936_united_states_presidential_election", "1944_united_states_presidential_election", "1940_united_states_presidential_election", "1932_united_states_presidential_election", "1928_united_states_presidential_election", "1920_united_states_presidential_election", "iraq_war", "gulf_war", "reform_party_of_the_united_states_of_america", "constitution_party_(united_states)", "seth_macfarlane", "rocky_de_la_fuente", "billy_ray_cyrus", "deepwater_horizon_oil_spill", "killing_of_osama_bin_laden"
+  "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady", "john_wane_gacy", "ken_jennings", "beyoncé", "stephen_king", "jennifer_garner", "gilian_anderson", "jodie_foster", "caitlyn_jenner", "anthony_fauci", "space_shuttle_columbia_disaster", "taxi_driver", "buzz_aldrin", "ted_bundy", "wyatt_earp", "gadsden_flag", "vermin_supreme", "alec_baldwin", "jennifer_garner", "ku_klux_klan", "stephen_king", "columbine_high_school_massacre", "jon_bon_jovi", "monica_lewinsky", "guantanamo_bay_detention_camp", "warren_buffett", "2012_benghazi_attack", "jefferson_davis", "chicago_seven", "aretha_franklin", "ken_jennings", "henry_fonda", "2004_united_states_presidential_election", "timeline_of_russian_interference_in_the_2016_united_states_elections", "1984_united_states_presidential_election", "1988_united_states_presidential_election", "1980_united_states_presidential_election", "1976_united_states_presidential_election", "1964_united_states_presidential_election", "faithless_electors_in_the_2016_united_states_presidential_election", "1860_united_states_presidential_election", "1864_united_states_presidential_election", "1972_united_states_presidential_election", "1936_united_states_presidential_election", "1944_united_states_presidential_election", "1940_united_states_presidential_election", "1932_united_states_presidential_election", "1928_united_states_presidential_election", "1920_united_states_presidential_election", "iraq_war", "gulf_war", "reform_party_of_the_united_states_of_america", "constitution_party_(united_states)", "seth_macfarlane", "rocky_de_la_fuente", "billy_ray_cyrus", "deepwater_horizon_oil_spill", "killing_of_osama_bin_laden", "john_wayne_gacy" 
 )
 
 pages_to_filter_rep <- c(
@@ -1767,7 +1760,6 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
   current_node <- start
   partition_switch <- FALSE
   n_steps <- 0
-  n_steps_trapped <- 0
   
   # Pre-fetch parties and names
   node_parties <- V(graph)$party
@@ -1792,9 +1784,8 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
       if (n_steps == 0) { # if first node was already an "isolate" (no outgoing edges)
         return(NA)
       }
-      n_steps_trapped <- n_steps
       n_steps <- 15
-      return(c(current_node, n_steps, n_steps_trapped))
+      return(c(current_node, n_steps))
     }
 
     # Convert neighbors to names and indices
@@ -1855,17 +1846,15 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
   }
   
   # Return the final node reached by the random walk
-  return(c(current_node, n_steps, n_steps_trapped))
+  return(c(current_node, n_steps))
 }
 
 analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 1) {
   total_steps_needed <- vector()
-  total_trapped_steps <- vector()
   total_n_part_shift <- 0
   total_n_trapped <- 0
   total_n_republican <- 0
   total_n_democrat <- 0
-  total_n_politics <- 0
   total_n_other <- 0
   
   # Initialize counters for the number of steps needed for a partition shift
@@ -1878,10 +1867,8 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
   for (iter in 1:iterations) {
     n_trapped <- 0
     steps_needed <- vector(mode = "list", length = length(vertices))
-    trapped_steps <- list()
     n_part_shift <- 0
     n_other <- 0
-    n_politics <- 0
     n_republican <- 0
     n_democrat <- 0
     
@@ -1907,11 +1894,11 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
       
       final_node <- output[1]
       steps_taken <- as.numeric(output[2])
-      n_steps_trapped <- as.numeric(output[3])
       
-      if (n_steps_trapped > 0) {
+      
+      if (steps_taken == 15) {
         n_trapped <- n_trapped + 1
-        trapped_steps[[length(trapped_steps) + 1]] <- n_steps_trapped
+        next
       }
       
       final_node_index <- match(final_node, V(graph)$name)
@@ -1921,8 +1908,6 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
         n_republican <- n_republican + 1
       } else if (final_node_party == "Democrat") {
         n_democrat <- n_democrat + 1
-      } else if (final_node_party == "Politics") {
-        n_politics <- n_politics + 1
       } else {
         n_other <- n_other + 1
       }
@@ -1955,18 +1940,12 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
     steps_needed <- unlist(steps_needed)
     mean_steps <- mean(steps_needed, na.rm = TRUE)
     
-    # Get average of trapped steps
-    trapped_steps <- unlist(trapped_steps)
-    mean_trapped_steps <- mean(trapped_steps, na.rm = TRUE)
-    
     # Aggregate results
     total_steps_needed <- c(total_steps_needed, steps_needed)
-    total_trapped_steps <- c(total_trapped_steps, trapped_steps)
     total_n_part_shift <- total_n_part_shift + n_part_shift
     total_n_trapped <- total_n_trapped + n_trapped
     total_n_republican <- total_n_republican + n_republican
     total_n_democrat <- total_n_democrat + n_democrat
-    total_n_politics <- total_n_politics + n_politics
     total_n_other <- total_n_other + n_other
     
     # Aggregate step counts for partition shifts
@@ -1979,16 +1958,13 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
   
   # Calculate final averages
   final_mean_steps <- mean(total_steps_needed, na.rm = TRUE)
-  final_mean_trapped_steps <- mean(total_trapped_steps, na.rm = TRUE)
   
   return(list(
     steps = final_mean_steps, 
     n_part_shift = total_n_part_shift, 
     n_trapped = total_n_trapped, 
-    mean_steps_trapped = final_mean_trapped_steps, 
     n_republican = total_n_republican, 
     n_democrat = total_n_democrat, 
-    n_politics = total_n_politics, 
     n_other = total_n_other,
     n_of_shift_steps_1 = total_n_of_shift_steps_1,
     n_of_shift_steps_2 = total_n_of_shift_steps_2,
@@ -2054,24 +2030,310 @@ data_list2_df <- data.frame(
 # run random walks for november
 results_nov20_1d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 10)
 
-results_nov20_2d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_republican, steps = 5, iterations = 10)
+results_nov20_2d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 10)
 
 results_nov20_3d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 10)
 
-results_nov20_4d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_republican, steps = 5, iterations = 10)
+results_nov20_4d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 10)
 
 results_nov20_5d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 10)
 
 results_nov20_1r <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 10)
 
-results_nov20_2r <- analyze_party_walk(net_clicknov20, "Republican", page_names_democrat, steps = 5, iterations = 10)
+results_nov20_2r <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 10)
 
 results_nov20_3r <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 10)
 
-results_nov20_4r <- analyze_party_walk(net_clicknov20, "Republican", page_names_democrat, steps = 5, iterations = 10)
+results_nov20_4r <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 10)
 
 results_nov20_5r <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 10)
+
+# aggregate the results
+data_list_dem_nov <- list(
+  results_nov20_1d, results_nov20_2d, results_nov20_3d, results_nov20_4d, results_nov20_5d)
+
+data_list_rep_nov <- list(
+  results_nov20_1r, results_nov20_2r, results_nov20_3r, results_nov20_4r, results_nov20_5r)
+
+# Initialize accumulator
+results_dem_nov <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
+
+steps_count <- 0
+
+# Iterate through each object to sum and count
+for (obj in data_list_dem_nov) {
+  results_dem_nov$steps <- results_dem_nov$steps + obj$steps
+  results_dem_nov$n_part_shift <- results_dem_nov$n_part_shift + obj$n_part_shift
+  results_dem_nov$n_trapped <- results_dem_nov$n_trapped + obj$n_trapped
+  results_dem_nov$n_republican <- results_dem_nov$n_republican + obj$n_republican
+  results_dem_nov$n_democrat <- results_dem_nov$n_democrat + obj$n_democrat
+  results_dem_nov$n_other <- results_dem_nov$n_other + obj$n_other
+  results_dem_nov$n_of_shift_steps_1 <- results_dem_nov$n_of_shift_steps_1 + obj$n_of_shift_steps_1
+  results_dem_nov$n_of_shift_steps_2 <- results_dem_nov$n_of_shift_steps_2 + obj$n_of_shift_steps_2
+  results_dem_nov$n_of_shift_steps_3 <- results_dem_nov$n_of_shift_steps_3 + obj$n_of_shift_steps_3
+  results_dem_nov$n_of_shift_steps_4 <- results_dem_nov$n_of_shift_steps_4 + obj$n_of_shift_steps_4
+  results_dem_nov$n_of_shift_steps_5 <- results_dem_nov$n_of_shift_steps_5 + obj$n_of_shift_steps_5
+  steps_count <- steps_count + 1
+}
+
+results_dem_nov$steps <- results_dem_nov$steps / steps_count
+
+# initialize accumulator
+results_rep_nov <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
+
+steps_count <- 0
+
+# Iterate through each object to sum and count
+for (obj in data_list_rep_nov) {
+  results_rep_nov$steps <- results_rep_nov$steps + obj$steps
+  results_rep_nov$n_part_shift <- results_rep_nov$n_part_shift + obj$n_part_shift
+  results_rep_nov$n_trapped <- results_rep_nov$n_trapped + obj$n_trapped
+  results_rep_nov$n_republican <- results_rep_nov$n_republican + obj$n_republican
+  results_rep_nov$n_democrat <- results_rep_nov$n_democrat + obj$n_democrat
+  results_rep_nov$n_other <- results_rep_nov$n_other + obj$n_other
+  results_rep_nov$n_of_shift_steps_1 <- results_rep_nov$n_of_shift_steps_1 + obj$n_of_shift_steps_1
+  results_rep_nov$n_of_shift_steps_2 <- results_rep_nov$n_of_shift_steps_2 + obj$n_of_shift_steps_2
+  results_rep_nov$n_of_shift_steps_3 <- results_rep_nov$n_of_shift_steps_3 + obj$n_of_shift_steps_3
+  results_rep_nov$n_of_shift_steps_4 <- results_rep_nov$n_of_shift_steps_4 + obj$n_of_shift_steps_4
+  results_rep_nov$n_of_shift_steps_5 <- results_rep_nov$n_of_shift_steps_5 + obj$n_of_shift_steps_5
+  steps_count <- steps_count + 1
+}
+
+results_rep_nov$steps <- results_rep_nov$steps / steps_count
 ```
+
+```{r}
+# run random walks for december
+results_dec20_1d <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 10)
+
+results_dec20_2d <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 10)
+
+results_dec20_3d <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 10)
+
+results_dec20_4d <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 10)
+
+results_dec20_5d <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 10)
+
+results_dec20_1r <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 10)
+
+results_dec20_2r <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 10)
+
+results_dec20_3r <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 10)
+
+results_dec20_4r <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 10)
+
+results_dec20_5r <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 10)
+
+# aggregate the results
+data_list_dem_dec <- list(
+  results_dec20_1d, results_dec20_2d, results_dec20_3d, results_dec20_4d, results_dec20_5d)
+
+data_list_rep_dec <- list(
+  results_dec20_1r, results_dec20_2r, results_dec20_3r, results_dec20_4r, results_dec20_5r)
+
+# Initialize accumulator
+results_dem_dec <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
+
+steps_count <- 0
+
+# Iterate through each object to sum and count
+for (obj in data_list_dem_dec) {
+  results_dem_dec$steps <- results_dem_dec$steps + obj$steps
+  results_dem_dec$n_part_shift <- results_dem_dec$n_part_shift + obj$n_part_shift
+  results_dem_dec$n_trapped <- results_dem_dec$n_trapped + obj$n_trapped
+  results_dem_dec$n_republican <- results_dem_dec$n_republican + obj$n_republican
+  results_dem_dec$n_democrat <- results_dem_dec$n_democrat + obj$n_democrat
+  results_dem_dec$n_other <- results_dem_dec$n_other + obj$n_other
+  results_dem_dec$n_of_shift_steps_1 <- results_dem_dec$n_of_shift_steps_1 + obj$n_of_shift_steps_1
+  results_dem_dec$n_of_shift_steps_2 <- results_dem_dec$n_of_shift_steps_2 + obj$n_of_shift_steps_2
+  results_dem_dec$n_of_shift_steps_3 <- results_dem_dec$n_of_shift_steps_3 + obj$n_of_shift_steps_3
+  results_dem_dec$n_of_shift_steps_4 <- results_dem_dec$n_of_shift_steps_4 + obj$n_of_shift_steps_4
+  results_dem_dec$n_of_shift_steps_5 <- results_dem_dec$n_of_shift_steps_5 + obj$n_of_shift_steps_5
+  steps_count <- steps_count + 1
+}
+
+results_dem_dec$steps <- results_dem_dec$steps / steps_count
+
+# initialize accumulator
+results_rep_dec <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
+
+steps_count <- 0
+
+# Iterate through each object to sum and count
+for (obj in data_list_rep_dec) {
+  results_rep_dec$steps <- results_rep_dec$steps + obj$steps
+  results_rep_dec$n_part_shift <- results_rep_dec$n_part_shift + obj$n_part_shift
+  results_rep_dec$n_trapped <- results_rep_dec$n_trapped + obj$n_trapped
+  results_rep_dec$n_republican <- results_rep_dec$n_republican + obj$n_republican
+  results_rep_dec$n_democrat <- results_rep_dec$n_democrat + obj$n_democrat
+  results_rep_dec$n_other <- results_rep_dec$n_other + obj$n_other
+  results_rep_dec$n_of_shift_steps_1 <- results_rep_dec$n_of_shift_steps_1 + obj$n_of_shift_steps_1
+  results_rep_dec$n_of_shift_steps_2 <- results_rep_dec$n_of_shift_steps_2 + obj$n_of_shift_steps_2
+  results_rep_dec$n_of_shift_steps_3 <- results_rep_dec$n_of_shift_steps_3 + obj$n_of_shift_steps_3
+  results_rep_dec$n_of_shift_steps_4 <- results_rep_dec$n_of_shift_steps_4 + obj$n_of_shift_steps_4
+  results_rep_dec$n_of_shift_steps_5 <- results_rep_dec$n_of_shift_steps_5 + obj$n_of_shift_steps_5
+  steps_count <- steps_count + 1
+}
+
+results_rep_dec$steps <- results_rep_dec$steps / steps_count
+```
+
+
+
+```{r}
+# run random walks for january
+results_jan21_1d <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 10)
+
+results_jan21_2d <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 10)
+
+results_jan21_3d <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 10)
+
+results_jan21_4d <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 10)
+
+results_jan21_5d <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 10)
+
+results_jan21_1r <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 10)
+
+results_jan21_2r <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 10)
+
+results_jan21_3r <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 10)
+
+results_jan21_4r <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 10)
+
+results_jan21_5r <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 10)
+
+# aggregate the results
+data_list_dem_jan <- list(
+  results_jan21_1d, results_jan21_2d, results_jan21_3d, results_jan21_4d, results_jan21_5d)
+
+data_list_rep_jan <- list(
+  results_jan21_1r, results_jan21_2r, results_jan21_3r, results_jan21_4r, results_jan21_5r)
+
+# Initialize accumulator
+
+results_dem_jan <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
+
+steps_count <- 0
+
+# Iterate through each object to sum and count
+for (obj in data_list_dem_jan) {
+  results_dem_jan$steps <- results_dem_jan$steps + obj$steps
+  results_dem_jan$n_part_shift <- results_dem_jan$n_part_shift + obj$n_part_shift
+  results_dem_jan$n_trapped <- results_dem_jan$n_trapped + obj$n_trapped
+  results_dem_jan$n_republican <- results_dem_jan$n_republican + obj$n_republican
+  results_dem_jan$n_democrat <- results_dem_jan$n_democrat + obj$n_democrat
+  results_dem_jan$n_other <- results_dem_jan$n_other + obj$n_other
+  results_dem_jan$n_of_shift_steps_1 <- results_dem_jan$n_of_shift_steps_1 + obj$n_of_shift_steps_1
+  results_dem_jan$n_of_shift_steps_2 <- results_dem_jan$n_of_shift_steps_2 + obj$n_of_shift_steps_2
+  results_dem_jan$n_of_shift_steps_3 <- results_dem_jan$n_of_shift_steps_3 + obj$n_of_shift_steps_3
+  results_dem_jan$n_of_shift_steps_4 <- results_dem_jan$n_of_shift_steps_4 + obj$n_of_shift_steps_4
+  results_dem_jan$n_of_shift_steps_5 <- results_dem_jan$n_of_shift_steps_5 + obj$n_of_shift_steps_5
+  steps_count <- steps_count + 1
+}
+
+# Calculate the average of steps
+results_dem_jan$steps <- results_dem_jan$steps / steps_count
+
+# initialize accumulator
+results_rep_jan <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
+
+steps_count <- 0
+
+# Iterate through each object to sum and count
+for (obj in data_list_rep_jan) {
+  results_rep_jan$steps <- results_rep_jan$steps + obj$steps
+  results_rep_jan$n_part_shift <- results_rep_jan$n_part_shift + obj$n_part_shift
+  results_rep_jan$n_trapped <- results_rep_jan$n_trapped + obj$n_trapped
+  results_rep_jan$n_republican <- results_rep_jan$n_republican + obj$n_republican
+  results_rep_jan$n_democrat <- results_rep_jan$n_democrat + obj$n_democrat
+  results_rep_jan$n_other <- results_rep_jan$n_other + obj$n_other
+  results_rep_jan$n_of_shift_steps_1 <- results_rep_jan$n_of_shift_steps_1 + obj$n_of_shift_steps_1
+  results_rep_jan$n_of_shift_steps_2 <- results_rep_jan$n_of_shift_steps_2 + obj$n_of_shift_steps_2
+  results_rep_jan$n_of_shift_steps_3 <- results_rep_jan$n_of_shift_steps_3 + obj$n_of_shift_steps_3
+  results_rep_jan$n_of_shift_steps_4 <- results_rep_jan$n_of_shift_steps_4 + obj$n_of_shift_steps_4
+  results_rep_jan$n_of_shift_steps_5 <- results_rep_jan$n_of_shift_steps_5 + obj$n_of_shift_steps_5
+  steps_count <- steps_count + 1
+}
+
+# Calculate the average of steps
+results_rep_jan$steps <- results_rep_jan$steps / steps_count
+
+# run random walks for february
+results_feb21_1d <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 10)
+
+results_feb21_2d <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 10)
+
+results_feb21_3d <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 10)
+
+results_feb21_4d <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 10)
+
+results_feb21_5d <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 10)
+
+results_feb21_1r <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 10)
+
+results_feb21_2r <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 10)
+
+results_feb21_3r <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 10)
+
+results_feb21_4r <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 10)
+
+results_feb21_5r <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 10)
+
+# aggregate the results
+data_list_dem_feb <- list(
+  results_feb21_1d, results_feb21_2d, results_feb21_3d, results_feb21_4d, results_feb21_5d)
+
+data_list_rep_feb <- list(
+  results_feb21_1r, results_feb21_2r, results_feb21_3r, results_feb21_4r, results_feb21_5r)
+
+# Initialize accumulator
+results_dem_feb <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
+steps_count <- 0
+
+# Iterate through each object to sum and count
+for (obj in data_list_dem_feb) {
+  results_dem_feb$steps <- results_dem_feb$steps + obj$steps
+  results_dem_feb$n_part_shift <- results_dem_feb$n_part_shift + obj$n_part_shift
+  results_dem_feb$n_trapped <- results_dem_feb$n_trapped + obj$n_trapped
+  results_dem_feb$n_republican <- results_dem_feb$n_republican + obj$n_republican
+  results_dem_feb$n_democrat <- results_dem_feb$n_democrat + obj$n_democrat
+  results_dem_feb$n_other <- results_dem_feb$n_other + obj$n_other
+  results_dem_feb$n_of_shift_steps_1 <- results_dem_feb$n_of_shift_steps_1 + obj$n_of_shift_steps_1
+  results_dem_feb$n_of_shift_steps_2 <- results_dem_feb$n_of_shift_steps_2 + obj$n_of_shift_steps_2
+  results_dem_feb$n_of_shift_steps_3 <- results_dem_feb$n_of_shift_steps_3 + obj$n_of_shift_steps_3
+  results_dem_feb$n_of_shift_steps_4 <- results_dem_feb$n_of_shift_steps_4 + obj$n_of_shift_steps_4
+  results_dem_feb$n_of_shift_steps_5 <- results_dem_feb$n_of_shift_steps_5 + obj$n_of_shift_steps_5
+  steps_count <- steps_count + 1
+}
+
+# Calculate the average of steps
+results_dem_feb$steps <- results_dem_feb$steps / steps_count
+
+# Initialize accumulator
+results_rep_feb <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
+steps_count <- 0
+
+# Iterate through each object to sum and count
+for (obj in data_list_rep_feb) {
+  results_rep_feb$steps <- results_rep_feb$steps + obj$steps
+  results_rep_feb$n_part_shift <- results_rep_feb$n_part_shift + obj$n_part_shift
+  results_rep_feb$n_trapped <- results_rep_feb$n_trapped + obj$n_trapped
+  results_rep_feb$n_republican <- results_rep_feb$n_republican + obj$n_republican
+  results_rep_feb$n_democrat <- results_rep_feb$n_democrat + obj$n_democrat
+  results_rep_feb$n_other <- results_rep_feb$n_other + obj$n_other
+  results_rep_feb$n_of_shift_steps_1 <- results_rep_feb$n_of_shift_steps_1 + obj$n_of_shift_steps_1
+  results_rep_feb$n_of_shift_steps_2 <- results_rep_feb$n_of_shift_steps_2 + obj$n_of_shift_steps_2
+  results_rep_feb$n_of_shift_steps_3 <- results_rep_feb$n_of_shift_steps_3 + obj$n_of_shift_steps_3
+  results_rep_feb$n_of_shift_steps_4 <- results_rep_feb$n_of_shift_steps_4 + obj$n_of_shift_steps_4
+  results_rep_feb$n_of_shift_steps_5 <- results_rep_feb$n_of_shift_steps_5 + obj$n_of_shift_steps_5
+  steps_count <- steps_count + 1
+}
+
+# Calculate the average of steps
+results_rep_feb$steps <- results_rep_feb$steps / steps_count
+
+```
+
 
 
 ```{r rw_visualisation}
