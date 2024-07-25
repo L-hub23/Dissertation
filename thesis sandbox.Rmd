@@ -462,6 +462,9 @@ net_clickaug21 <- update_graph_with_affiliations(net_clickaug21)
 net_clicksep21 <- update_graph_with_affiliations(net_clicksep21)
 net_clickoct21 <- update_graph_with_affiliations(net_clickoct21)
 net_clicknov21 <- update_graph_with_affiliations(net_clicknov21)
+
+# check the number of republican and democrat nodes
+print(sum(V(net_clicknov20)$party == "Democrat"))
 ```
 
 ```{r descriptive_analysis}
@@ -1149,7 +1152,8 @@ assign_attributes_and_calculate_correlation <- function(random_net, original_net
   assign(random_net_name, random_net, envir = .GlobalEnv)
   
   if (correlation == TRUE) {
-   calculate_spearman_correlation(random_net, random_membership) 
+   output <- calculate_spearman_correlation(random_net, random_membership) 
+   return(output)
   }
 }
 
@@ -2403,7 +2407,6 @@ for (obj in data_list_rep_feb) {
 
 # Calculate the average of steps
 results_rep_feb$steps <- results_rep_feb$steps / steps_count
-
 ```
 
 ```{r create_random_nets_for_rw}
@@ -2453,9 +2456,9 @@ random_walk_random_networks <- function(network) {
     network)$name[republican_indices[top_100_republican_indices]]
 
   # Perform the analyze_party_walk for Democratic nodes
-  results_random_dem <- analyze_party_walk(network, "Democrat", top_100_democratic_elements, steps = 5, iterations = 10)
+  results_random_dem <- analyze_party_walk(network, "Democrat", top_100_democratic_elements, steps = 5, iterations = 50)
   
-  results_random_rep <- analyze_party_walk(network, "Republican", top_100_republican_elements, steps = 5, iterations = 10)
+  results_random_rep <- analyze_party_walk(network, "Republican", top_100_republican_elements, steps = 5, iterations = 50)
   
   # Return the results of the random walk
   return(
@@ -2463,9 +2466,9 @@ random_walk_random_networks <- function(network) {
   )
 }
 
-results_random_oct20 <- random_walk_random_networks(random_net_oct20_full)
-results_random_oct20_dem <- results_random_oct20[1]$democrat
-results_random_oct20_rep <- results_random_oct20[2]$republican
+#results_random_oct20 <- random_walk_random_networks(random_net_oct20_full)
+#results_random_oct20_dem <- results_random_oct20[1]$democrat
+#results_random_oct20_rep <- results_random_oct20[2]$republican
 
 results_random_nov20 <- random_walk_random_networks(random_net_nov20_full)
 results_random_nov20_dem <- results_random_nov19[1]$democrat
@@ -2597,6 +2600,93 @@ ggplot(exposure_df, aes(x = steps, y = exposure, color = party, linetype = month
   geom_point() +
   labs(
     title = "Exposure to Diverse Information Over Steps",
+    x = "Steps",
+    y = "Exposure to Other Partition (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+```
+
+```{r}
+# calculate exposure for results of random networks 
+exposure_random_nov20 <- calculate_exposure(results_random_nov20_dem)
+exposure_random_nov20_rep <- calculate_exposure(results_random_nov20_rep)
+exposure_random_dec20 <- calculate_exposure(results_random_dec20_dem)
+exposure_random_dec20_rep <- calculate_exposure(results_random_dec20_rep)
+exposure_random_jan21 <- calculate_exposure(results_random_jan21_dem)
+exposure_random_jan21_rep <- calculate_exposure(results_random_jan21_rep)
+exposure_random_feb21 <- calculate_exposure(results_random_feb21_dem)
+exposure_random_feb21_rep <- calculate_exposure(results_random_feb21_rep)
+
+# plot the results
+exposure_random_data <- data.frame(
+  month = c("November 2020", "December 2020", "January 2021", "February 2021"),
+  democrat = c(exposure_random_nov20, exposure_random_dec20, exposure_random_jan21, exposure_random_feb21),
+  republican = c(exposure_random_nov20_rep, exposure_random_dec20_rep, exposure_random_jan21_rep, exposure_random_feb21_rep)
+)
+
+
+# factorise month
+exposure_random_data$month <- factor(exposure_random_data$month, levels = c("November 2020", "December 2020", "January 2021", "February 2021"))
+
+exposure_random_data_long <- pivot_longer(exposure_random_data, cols = c(democrat, republican), names_to = "variable", values_to = "value")
+
+ggplot(exposure_random_data_long, aes(x = month, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Exposure to Diverse Information by Party in Random Networks",
+       x = "Month",
+       y = "Exposure to Diverse Information",
+       fill = "Party") +
+  theme_minimal()
+```
+
+```{r}
+# calculate exposure percentage for results of random networks
+exposure_percentages_random_nov <- list(
+  democrat = calculate_exposure_percentage(results_random_nov20_dem),
+  republican = calculate_exposure_percentage(results_random_nov20_rep)
+)
+
+exposure_percentages_random_dec <- list(
+  democrat = calculate_exposure_percentage(results_random_dec20_dem),
+  republican = calculate_exposure_percentage(results_random_dec20_rep)
+)
+
+exposure_percentages_random_jan <- list(
+  democrat = calculate_exposure_percentage(results_random_jan21_dem),
+  republican = calculate_exposure_percentage(results_random_jan21_rep)
+)
+
+exposure_percentages_random_feb <- list(
+  democrat = calculate_exposure_percentage(results_random_feb21_dem),
+  republican = calculate_exposure_percentage(results_random_feb21_rep)
+)
+
+exposure_random_df <- bind_rows(
+  data.frame(month = "November 2020", party = "Democrat", exposure = exposure_percentages_random_nov$democrat),
+  data.frame(month = "November 2020", party = "Republican", exposure = exposure_percentages_random_nov$republican),
+  data.frame(month = "December 2020", party = "Democrat", exposure = exposure_percentages_random_dec$democrat),
+  data.frame(month = "December 2020", party = "Republican", exposure = exposure_percentages_random_dec$republican),
+  data.frame(month = "January 2021", party = "Democrat", exposure = exposure_percentages_random_jan$democrat),
+  data.frame(month = "January 2021", party = "Republican", exposure = exposure_percentages_random_jan$republican),
+  data.frame(month = "February 2021", party = "Democrat", exposure = exposure_percentages_random_feb$democrat),
+  data.frame(month = "February 2021", party = "Republican", exposure = exposure_percentages_random_feb$republican)
+)
+
+# factorise month
+exposure_random_df$month <- factor(exposure_random_df$month, levels = c("November 2020", "December 2020", "January 2021", "February 2021"))
+
+# Apply the function to add steps
+exposure_random_df <- exposure_random_df %>%
+  group_by(month, party) %>%
+  do(add_steps(.))
+
+# Plot the data using ggplot2
+ggplot(exposure_random_df, aes(x = steps, y = exposure, color = party, linetype = month, group = interaction(month, party))) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Exposure to Diverse Information Over Steps in Random Networks",
     x = "Steps",
     y = "Exposure to Other Partition (%)"
   ) +
