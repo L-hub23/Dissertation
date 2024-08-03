@@ -791,10 +791,10 @@ matrices_list <- list(November_19 = mixing_matrix_nov19, December_19 = mixing_ma
 extract_counts <- function(matrix, month) {
   data.frame(
     Month = month,
-    "Democrat-Democrat" = matrix["Democrat", "Democrat"],
-    "Democrat-Republican" = matrix["Democrat", "Republican"],
-    "Republican-Democrat" = matrix["Republican", "Democrat"],
-    "Republican-Republican" = matrix["Republican", "Republican"]
+    "Democrat to Democrat" = matrix["Democrat", "Democrat"],
+    "Democrat to Republican" = matrix["Democrat", "Republican"],
+    "Republican to Democrat" = matrix["Republican", "Democrat"],
+    "Republican to Republican" = matrix["Republican", "Republican"]
   )
 }
 
@@ -812,14 +812,52 @@ results$Month <- factor(results$Month, levels = c(
 results_long <- results %>%
   gather(key = "Interaction", value = "Count", -Month)
 
+results_long$Interaction <- factor(results_long$Interaction, levels = c(
+  "Democrat.to.Democrat",
+  "Democrat.to.Republican",
+  "Republican.to.Democrat",
+  "Republican.to.Republican"
+))
+
+y_breaks <- pretty(results_long$Count, n = 5)
+
+custom_labels <- c("November '19", "December '19",
+  "January '20", "February '20", "March '20", "April '20", "May '20", "June '20", "July '20", "August '20", "September '20", "October '20", "November '20", "December '20",
+  "January '21", "February '21", "March '21", "April '21", "May '21", "June '21", "July '21", "August '21", "September '21", "October '21", "November '21")
+
+custom_legend_labels <- c("Democrat to Democrat", "Democrat to Republican", "Republican to Democrat", "Republican to Republican")
+
+custom_colors <- c(
+  "Democrat.to.Democrat" = "dodgerblue", 
+  "Republican.to.Democrat" = "pink", 
+  "Democrat.to.Republican" = "purple", 
+  "Republican.to.Republican" = "red"
+)
+
 ggplot(results_long, aes(x = Month, y = Count, color = Interaction, group = Interaction)) +
   geom_line() +
-  geom_point() +
-  labs(title = "Edge Counts Between Parties Over Time",
+  geom_point(size = 1) +
+  geom_vline(xintercept = 13, linetype = "dashed", color = "forestgreen", alpha = 0.5) +
+  geom_vline(xintercept = 15, linetype = "dashed", color = "forestgreen", alpha = 0.5) +
+  annotate("text", x = 13, y = 0.1, label = "Election", vjust = 0.5, color = "darkgreen", family = "Times New Roman", size = 4) +
+  annotate("text", x = 15, y = 0.1, label = "Insurgence", vjust = -2, color = "darkgreen", family = "Times New Roman", size = 4) +
+  labs(title = "Figure 1. Count of Edges included in Wikipedia hyperlink networks over time",
        x = "Month",
-       y = "Edge Count") +
+       y = "Edge Count", 
+       color = "Link Type") +
+  scale_x_discrete(labels = custom_labels) +
+  scale_y_continuous(breaks = y_breaks) +
+  scale_color_manual(values = custom_colors, labels = custom_legend_labels) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10, family = "Times New Roman"),
+    axis.text.y = element_text(size = 10, family = "Times New Roman"),
+    plot.title = element_text(size = 18, family = "Times New Roman", hjust = 0.5),
+    axis.title.x = element_text(size = 15, family = "Times New Roman"),
+    axis.title.y = element_text(size = 15, family = "Times New Roman"),
+    legend.text = element_text(size = 10, family = "Times New Roman"),
+    legend.title = element_text(size = 15, family = "Times New Roman")
+  )
 ```
 
 
@@ -950,26 +988,36 @@ membership_nov21 <- as.numeric(factor(membership_nov21, levels = c("Democrat", "
 communities_nov21 <- modularity(net_clicknov21_filtered, membership_nov21, weights = net_clicknov21_filtered$weight)
 
 modularity_scores <- data.frame(
-  Month = c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "November 2021"),
+  Month = c("November '19", "December '19", "January '20", "February '20", "March '20", "April '20", "May '20", "June '20", "July '20", "August '20", "September '20", "October '20", "November '20", "December '20", "January '21", "February '21", "March '21", "April '21", "May '21", "June '21", "July '21", "August '21", "September '21", "November '21"),
   Modularity = c(
-    communities_nov19, communities_dec19, communities_jan20, communities_feb20, communities_mar20, communities_apr20, communities_may20, communities_jun20, communities_jul20, communities_aug20, communities_sep20, communities_nov20, communities_dec20, communities_jan21, communities_feb21, communities_mar21, communities_apr21, communities_may21, communities_jun21, communities_jul21, communities_aug21, communities_sep21, communities_nov21))
+    communities_nov19, communities_dec19, communities_jan20, communities_feb20, communities_mar20, communities_apr20, communities_may20, communities_jun20, communities_jul20, communities_aug20, communities_sep20, communities_oct20, communities_nov20, communities_dec20, communities_jan21, communities_feb21, communities_mar21, communities_apr21, communities_may21, communities_jun21, communities_jul21, communities_aug21, communities_sep21, communities_nov21))
 
 modularity_scores$Month <- factor(modularity_scores$Month, levels = modularity_scores$Month)
 
 average_modularity <- mean(modularity_scores$Modularity, na.rm = TRUE)
 
+
 ggplot(modularity_scores, aes(x = Month, y = Modularity)) +
-  geom_point(size = 1) +  # Add points
-  geom_line(aes(group = 1), color = "forestgreen") +  # Connect points with lines
-  geom_hline(yintercept = average_modularity, linetype = "solid", color = "darkred", alpha = 0.6) + 
-  geom_vline(xintercept = 12, linetype = "dashed", color = "purple", alpha = 0.4) +
-  geom_vline(xintercept = 14, linetype = "dashed", color = "purple", alpha = 0.4) +
-  annotate("text", x = 12, y = 0.1, label = "Election", vjust = 0, color = "purple") +
-  annotate("text", x = 14, y = 0.1, label = "Insurgence", vjust = -2, color = "purple") +
-  labs(x = "Month", y = "Modularity", title = "Modularity Scores from September 2020 to February 2021") +
+  geom_point(size = 0.8, color = "purple") +  # Add points
+  geom_line(aes(group = 1), color = "purple") +  # Connect points with lines
+  geom_hline(yintercept = average_modularity, linetype = "solid", color = "darkorange2", alpha = 0.6) + 
+  geom_vline(xintercept = 13, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
+  geom_vline(xintercept = 15, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
+  annotate("text", x = 13, y = 0.1, label = "Election", vjust = 0, color = "darkgreen", family = "Times New Roman", size = 5) +
+  annotate("text", x = 15, y = 0.1, label = "Insurgence", vjust = -2, color = "darkgreen", family = "Times New Roman", size = 5) +
+  annotate("text", x = Inf, y = average_modularity, label = "Average Modularity", vjust = 1.5, hjust = 1, color = "darkorange2", family = "Times New Roman", size = 4) +
+  labs(x = "Month", y = "Modularity", title = "Figure 2. Modularity Scores from November 2019 to November 2021") +
   theme_minimal() +  # Minimal theme
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_y_continuous(limits = c(0, 0.3))
+  theme(
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, family = "Times New Roman"),
+    axis.text.y = element_text(size = 10, family = "Times New Roman"),
+    axis.title.x = element_text(size = 15, family = "Times New Roman"),
+    axis.title.y = element_text(size = 15, family = "Times New Roman"),
+    plot.title = element_text(size = 18, family = "Times New Roman", hjust = 0.5),
+    legend.text = element_text(family = "Times New Roman"),
+    legend.title = element_text(family = "Times New Roman")
+  ) +
+  scale_y_continuous(limits = c(0, 0.4))
 ```
 
 
@@ -1033,6 +1081,29 @@ calculate_spearman_correlation <- function(graph, community) {
     democrat = rho_democrat
   ))
 }
+
+# calculate correlation between nodes ranked by weighted degrees and normal degrees
+  cross_boundary_connections_weighted <- function(graph, community) {
+    sapply(V(graph), function(node) {
+      neighbors <- neighbors(graph, node)
+      edge_ids <- E(graph)[.from(node) & .to(neighbors)]
+      # Sum the instances where neighboring nodes are in different communities
+      sum(E(graph)$weight[edge_ids][community[neighbors] != community[node]])
+    })
+  }
+  
+  cross_boundary_connections <- function(graph, community) {
+    sapply(V(graph), function(node) {
+      neighbors <- neighbors(graph, node)
+      edge_ids <- E(graph)[.from(node) & .to(neighbors)]
+      # Sum the instances where neighboring nodes are in different communities
+      sum(community[neighbors] != community[node])
+    })
+  }
+
+rank_cbw <- rank(-cross_boundary_connections_weighted(net_clicknov20_filtered, membership_nov20))
+rank_cb <- rank(-cross_boundary_connections(net_clicknov20_filtered, membership_nov20))
+rho <- cor(rank_d, rank_wd, method = "spearman")
 
 bp_nov19 <- calculate_spearman_correlation(net_clicknov19_filtered, membership_nov19)
 
@@ -1187,36 +1258,44 @@ bp_random_nov21 <- assign_attributes_and_calculate_correlation(random_net_nov21,
 ```{r bp_visualisation}
 # Create a data frame with the boundary polarisation scores
 boundary_polarisation_scores <- data.frame(
-  Month = c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021"),
-  Boundary_Polarisation = c(bp_nov19[1]$overall, bp_dec19[1]$overall, bp_jan20[1]$overall, bp_feb20[1]$overall, bp_mar20[1]$overall, bp_apr20[1]$overall, bp_may20[1]$overall, bp_jun20[1]$overall, bp_jul20[1]$overall, bp_aug20[1]$overall, bp_sep20[1]$overall, bp_nov20[1]$overall, bp_dec20[1]$overall, bp_jan21[1]$overall, bp_feb21[1]$overall, bp_mar21[1]$overall, bp_apr21[1]$overall, bp_may21[1]$overall, bp_jun21[1]$overall, bp_jul21[1]$overall, bp_aug21[1]$overall, bp_sep21[1]$overall, bp_oct21[1]$overall, bp_nov21[1]$overall),
-  Republican = c(bp_nov19[2]$republican, bp_dec19[2]$republican, bp_jan20[2]$republican, bp_feb20[2]$republican, bp_mar20[2]$republican, bp_apr20[2]$republican, bp_may20[2]$republican, bp_jun20[2]$republican, bp_jul20[2]$republican, bp_aug20[2]$republican, bp_sep20[2]$republican, bp_nov20[2]$republican, bp_dec20[2]$republican, bp_jan21[2]$republican, bp_feb21[2]$republican, bp_mar21[2]$republican, bp_apr21[2]$republican, bp_may21[2]$republican, bp_jun21[2]$republican, bp_jul21[2]$republican, bp_aug21[2]$republican, bp_sep21[2]$republican, bp_oct21[2]$republican, bp_nov21[2]$republican),
-  Democrat = c(bp_nov19[3]$democrat, bp_dec19[3]$democrat, bp_jan20[3]$democrat, bp_feb20[3]$democrat, bp_mar20[3]$democrat, bp_apr20[3]$democrat, bp_may20[3]$democrat, bp_jun20[3]$democrat, bp_jul20[3]$democrat, bp_aug20[3]$democrat, bp_sep20[3]$democrat, bp_nov20[3]$democrat, bp_dec20[3]$democrat, bp_jan21[3]$democrat, bp_feb21[3]$democrat, bp_mar21[3]$democrat, bp_apr21[3]$democrat, bp_may21[3]$democrat, bp_jun21[3]$democrat, bp_jul21[3]$democrat, bp_aug21[3]$democrat, bp_sep21[3]$democrat, bp_oct21[3]$democrat, bp_nov21[3]$democrat),
-  Random = c(bp_random_nov19[1]$overall, bp_random_dec19[1]$overall, bp_random_jan20[1]$overall, bp_random_feb20[1]$overall, bp_random_mar20[1]$overall, bp_random_apr20[1]$overall, bp_random_may20[1]$overall, bp_random_jun20[1]$overall, bp_random_jul20[1]$overall, bp_random_aug20[1]$overall, bp_random_sep20[1]$overall, bp_random_nov20[1]$overall, bp_random_dec20[1]$overall, bp_random_jan21[1]$overall, bp_random_feb21[1]$overall, bp_random_mar21[1]$overall, bp_random_apr21[1]$overall, bp_random_may21[1]$overall, bp_random_jun21[1]$overall, bp_random_jul21[1]$overall, bp_random_aug21[1]$overall, bp_random_sep21[1]$overall, bp_random_oct21[1]$overall, bp_random_nov21[1]$overall),
-  Random_Republican = c(bp_random_nov19[2]$republican, bp_random_dec19[2]$republican, bp_random_jan20[2]$republican, bp_random_feb20[2]$republican, bp_random_mar20[2]$republican, bp_random_apr20[2]$republican, bp_random_may20[2]$republican, bp_random_jun20[2]$republican, bp_random_jul20[2]$republican, bp_random_aug20[2]$republican, bp_random_sep20[2]$republican, bp_random_nov20[2]$republican, bp_random_dec20[2]$republican, bp_random_jan21[2]$republican, bp_random_feb21[2]$republican, bp_random_mar21[2]$republican, bp_random_apr21[2]$republican, bp_random_may21[2]$republican, bp_random_jun21[2]$republican, bp_random_jul21[2]$republican, bp_random_aug21[2]$republican, bp_random_sep21[2]$republican, bp_random_oct21[2]$republican, bp_random_nov21[2]$republican),
-  Random_Democrat = c(bp_random_nov19[3]$democrat, bp_random_dec19[3]$democrat, bp_random_jan20[3]$democrat, bp_random_feb20[3]$democrat, bp_random_mar20[3]$democrat, bp_random_apr20[3]$democrat, bp_random_may20[3]$democrat, bp_random_jun20[3]$democrat, bp_random_jul20[3]$democrat, bp_random_aug20[3]$democrat, bp_random_sep20[3]$democrat, bp_random_nov20[3]$democrat, bp_random_dec20[3]$democrat, bp_random_jan21[3]$democrat, bp_random_feb21[3]$democrat, bp_random_mar21[3]$democrat, bp_random_apr21[3]$democrat, bp_random_may21[3]$democrat, bp_random_jun21[3]$democrat, bp_random_jul21[3]$democrat, bp_random_aug21[3]$democrat, bp_random_sep21[3]$democrat, bp_random_oct21[3]$democrat, bp_random_nov21[3]$democrat)
+  Month = c("November '19", "December '19", "January '20", "February '20", "March '20", "April '20", "May '20", "June '20", "July '20", "August '20", "September '20", "October '20", "November '20", "December '20", "January '21", "February '21", "March '21", "April '21", "May '21", "June '21", "July '21", "August '21", "September '21", "October '21", "November '21"),
+  Boundary_Polarisation = c(bp_nov19[1]$overall, bp_dec19[1]$overall, bp_jan20[1]$overall, bp_feb20[1]$overall, bp_mar20[1]$overall, bp_apr20[1]$overall, bp_may20[1]$overall, bp_jun20[1]$overall, bp_jul20[1]$overall, bp_aug20[1]$overall, bp_sep20[1]$overall, bp_oct20[1]$overall, bp_nov20[1]$overall, bp_dec20[1]$overall, bp_jan21[1]$overall, bp_feb21[1]$overall, bp_mar21[1]$overall, bp_apr21[1]$overall, bp_may21[1]$overall, bp_jun21[1]$overall, bp_jul21[1]$overall, bp_aug21[1]$overall, bp_sep21[1]$overall, bp_oct21[1]$overall, bp_nov21[1]$overall),
+  Republican = c(bp_nov19[2]$republican, bp_dec19[2]$republican, bp_jan20[2]$republican, bp_feb20[2]$republican, bp_mar20[2]$republican, bp_apr20[2]$republican, bp_may20[2]$republican, bp_jun20[2]$republican, bp_jul20[2]$republican, bp_aug20[2]$republican, bp_sep20[2]$republican, bp_oct20[2]$republican, bp_nov20[2]$republican, bp_dec20[2]$republican, bp_jan21[2]$republican, bp_feb21[2]$republican, bp_mar21[2]$republican, bp_apr21[2]$republican, bp_may21[2]$republican, bp_jun21[2]$republican, bp_jul21[2]$republican, bp_aug21[2]$republican, bp_sep21[2]$republican, bp_oct21[2]$republican, bp_nov21[2]$republican),
+  Democrat = c(bp_nov19[3]$democrat, bp_dec19[3]$democrat, bp_jan20[3]$democrat, bp_feb20[3]$democrat, bp_mar20[3]$democrat, bp_apr20[3]$democrat, bp_may20[3]$democrat, bp_jun20[3]$democrat, bp_jul20[3]$democrat, bp_aug20[3]$democrat, bp_sep20[3]$democrat, bp_oct20[3]$democrat, bp_nov20[3]$democrat, bp_dec20[3]$democrat, bp_jan21[3]$democrat, bp_feb21[3]$democrat, bp_mar21[3]$democrat, bp_apr21[3]$democrat, bp_may21[3]$democrat, bp_jun21[3]$democrat, bp_jul21[3]$democrat, bp_aug21[3]$democrat, bp_sep21[3]$democrat, bp_oct21[3]$democrat, bp_nov21[3]$democrat),
+  Random = c(bp_random_nov19[1]$overall, bp_random_dec19[1]$overall, bp_random_jan20[1]$overall, bp_random_feb20[1]$overall, bp_random_mar20[1]$overall, bp_random_apr20[1]$overall, bp_random_may20[1]$overall, bp_random_jun20[1]$overall, bp_random_jul20[1]$overall, bp_random_aug20[1]$overall, bp_random_sep20[1]$overall, bp_random_oct20[1]$overall, bp_random_nov20[1]$overall, bp_random_dec20[1]$overall, bp_random_jan21[1]$overall, bp_random_feb21[1]$overall, bp_random_mar21[1]$overall, bp_random_apr21[1]$overall, bp_random_may21[1]$overall, bp_random_jun21[1]$overall, bp_random_jul21[1]$overall, bp_random_aug21[1]$overall, bp_random_sep21[1]$overall, bp_random_oct21[1]$overall, bp_random_nov21[1]$overall),
+  Random_Republican = c(bp_random_nov19[2]$republican, bp_random_dec19[2]$republican, bp_random_jan20[2]$republican, bp_random_feb20[2]$republican, bp_random_mar20[2]$republican, bp_random_apr20[2]$republican, bp_random_may20[2]$republican, bp_random_jun20[2]$republican, bp_random_jul20[2]$republican, bp_random_aug20[2]$republican, bp_random_sep20[2]$republican, bp_random_oct20[2]$republican, bp_random_nov20[2]$republican, bp_random_dec20[2]$republican, bp_random_jan21[2]$republican, bp_random_feb21[2]$republican, bp_random_mar21[2]$republican, bp_random_apr21[2]$republican, bp_random_may21[2]$republican, bp_random_jun21[2]$republican, bp_random_jul21[2]$republican, bp_random_aug21[2]$republican, bp_random_sep21[2]$republican, bp_random_oct21[2]$republican, bp_random_nov21[2]$republican),
+  Random_Democrat = c(bp_random_nov19[3]$democrat, bp_random_dec19[3]$democrat, bp_random_jan20[3]$democrat, bp_random_feb20[3]$democrat, bp_random_mar20[3]$democrat, bp_random_apr20[3]$democrat, bp_random_may20[3]$democrat, bp_random_jun20[3]$democrat, bp_random_jul20[3]$democrat, bp_random_aug20[3]$democrat, bp_random_sep20[3]$democrat, bp_random_oct20[3]$democrat, bp_random_nov20[3]$democrat, bp_random_dec20[3]$democrat, bp_random_jan21[3]$democrat, bp_random_feb21[3]$democrat, bp_random_mar21[3]$democrat, bp_random_apr21[3]$democrat, bp_random_may21[3]$democrat, bp_random_jun21[3]$democrat, bp_random_jul21[3]$democrat, bp_random_aug21[3]$democrat, bp_random_sep21[3]$democrat, bp_random_oct21[3]$democrat, bp_random_nov21[3]$democrat)
 )
 
 boundary_polarisation_scores$Month <- factor(
   boundary_polarisation_scores$Month,
-  levels = c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021")
+  levels = c("November '19", "December '19", "January '20", "February '20", "March '20", "April '20", "May '20", "June '20", "July '20", "August '20", "September '20", "October '20", "November '20", "December '20", "January '21", "February '21", "March '21", "April '21", "May '21", "June '21", "July '21", "August '21", "September '21", "October '21", "November '21")
 )
 
-# create line graph
-ggplot(boundary_polarisation_scores, aes(x = Month, y = Boundary_Polarisation, group = 1)) +
-  geom_line(aes(y = Random, color = "Random Networks")) +
-  geom_line(aes(color = "Empirical Networks")) +
-  geom_point(aes(y = Random, color = "Random Networks")) +
-  geom_point(aes(y = Boundary_Polarisation, color = "Empirical Networks")) +
-  geom_vline(xintercept = 12, linetype = "dashed", color = "purple", alpha = 0.4) +
-  geom_vline(xintercept = 14, linetype = "dashed", color = "purple", alpha = 0.4) +
-  annotate("text", x = 12, y = 0.1, label = "Election", vjust = -1, color = "purple") +
-  annotate("text", x = 14, y = 0.1, label = "Insurgence", vjust = -5, color = "purple") +
-  labs(x = "Month", y = "Spearman's Rho", title = "Boundary Polarisation from September 2020 to February 2021") +
+# Define custom colors
+custom_colors <- c("Random Networks" = "darkorange", "Empirical Networks" = "purple")
+
+ggplot(boundary_polarisation_scores, aes(x = Month)) +
+  geom_line(aes(y = Random, color = "Random Networks", group = 1)) +  # Color and label for random networks
+  geom_line(aes(y = Boundary_Polarisation, color = "Empirical Networks", group = 2)) +  # Color and label for empirical networks
+  geom_point(aes(y = Random, color = "Random Networks"), size = 1) +  # Smaller points for random networks
+  geom_point(aes(y = Boundary_Polarisation, color = "Empirical Networks"), size = 1) +  # Smaller points for empirical networks
+  geom_vline(xintercept = 13, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
+  geom_vline(xintercept = 15, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
+  annotate("text", x = 13, y = 0.1, label = "Election", vjust = -1, color = "darkgreen", family = "Times New Roman", size = 5) +
+  annotate("text", x = 15, y = 0.1, label = "Insurgence", vjust = -5, color = "darkgreen", family = "Times New Roman", size = 5) +
+  labs(x = "Month", y = "Spearman's Rho", title = "Figure 3. Boundary Polarisation from November 2019 to February 2021", color = "Network type") +
+  scale_color_manual(values = custom_colors) +  # Set custom colors for lines and points
   theme_minimal() +
-    theme(
-    axis.text.x = element_text(angle = 45, hjust = 1), 
-    legend.title = element_blank(),
-    plot.title = element_text(size = 8)) + # Smaller title size
+  theme(
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, family = "Times New Roman"),
+    axis.text.y = element_text(size = 10, family = "Times New Roman"),
+    axis.title.x = element_text(size = 15, family = "Times New Roman"),
+    axis.title.y = element_text(size = 15, family = "Times New Roman"),
+    plot.title = element_text(size = 18, hjust = 0.5, family = "Times New Roman"),
+    legend.title = element_text(size = 15, family = "Times New Roman"),
+    legend.text = element_text(size = 10, family = "Times New Roman")
+  ) +
   scale_y_continuous(limits = c(0, NA))
 ```
 
@@ -1264,6 +1343,85 @@ pages_to_filter_rep <- c(
   "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady", "john_wane_gacy", "ken_jennings", "beyoncé", "stephen_king", "jennifer_garner", "gilian_anderson", "jodie_foster", "caitlyn_jenner", "anthony_fauci", "space_shuttle_columbia_disaster", "taxi_driver", "buzz_aldrin", "ted_bundy", "wyatt_earp", "gadsden_flag", "vermin_supreme", "alec_baldwin", "jennifer_garner", "ku_klux_klan", "stephen_king", "columbine_high_school_massacre", "jon_bon_jovi", "monica_lewinsky", "guantanamo_bay_detention_camp", "warren_buffett", "2012_benghazi_attack", "jefferson_davis", "chicago_seven", "aretha_franklin", "ken_jennings", "henry_fonda", "2004_united_states_presidential_election", "timeline_of_russian_interference_in_the_2016_united_states_elections", "1984_united_states_presidential_election", "1988_united_states_presidential_election", "1980_united_states_presidential_election", "1976_united_states_presidential_election", "1964_united_states_presidential_election", "faithless_electors_in_the_2016_united_states_presidential_election", "1860_united_states_presidential_election", "1864_united_states_presidential_election", "1972_united_states_presidential_election", "1936_united_states_presidential_election", "1944_united_states_presidential_election", "1940_united_states_presidential_election", "1932_united_states_presidential_election", "1928_united_states_presidential_election", "1920_united_states_presidential_election", "iraq_war", "gulf_war", "hillary_clinton", "reform_party_of_the_united_states_of_america", "constitution_party_(united_states)", "space_shuttle_columbia_disaster"
 )
 ```
+
+```{r page_views_sep}
+# loop through all republican pages
+page_views_republican_sep <- list()
+for (i in republican_pages) {
+  # initialise empty list
+  # save results in a named list
+  page_views_republican_sep[[i]] <- page_view_month(i, "20200901", "20200930")
+  if (is.na(page_views_republican_sep[[i]])) {
+    # print(paste("Failed to fetch data for", i))
+    next
+  }
+}
+
+#loop through all democrat pages
+page_views_democrat_sep <- list()
+for (i in democrat_pages) {
+  # initialise empty list
+  # save results in a named list
+  page_views_democrat_sep[[i]] <- page_view_month(i, "20200901", "20200930")
+  if (is.na(page_views_democrat_sep[[i]])) {
+    # print(paste("Failed to fetch data for", i))
+    next
+  }
+}
+
+updated_rep_pv_list_sep <- list()
+
+#iterate through the original list
+for (original_name in names(page_views_republican_sep)) {
+  # Retrieve the value associated with the original name
+  page_views <- page_views_republican_sep[[original_name]]
+  
+  # Standardize the name
+  standardized_name <- tolower(original_name)
+  standardized_name <- gsub(" ", "_", standardized_name)
+  standardized_name <- trimws(standardized_name)
+  
+  # Store the value under the new standardized name in the updated list
+  updated_rep_pv_list_sep[[standardized_name]] <- page_views
+}
+
+updated_dem_pv_list_sep <- list()
+
+for (original_name in names(page_views_democrat_sep)) {
+  # Retrieve the value associated with the original name
+  page_views <- page_views_democrat_sep[[original_name]]
+  
+  # Standardize the name
+  standardized_name <- tolower(original_name)
+  standardized_name <- gsub(" ", "_", standardized_name)
+  standardized_name <- trimws(standardized_name)
+  
+  # Store the value under the new standardized name in the updated list
+  updated_dem_pv_list_sep[[standardized_name]] <- page_views
+}
+
+network_names_sep <- V(net_clicksep20_filtered)$name
+
+matched_names_rep_sep <- network_names_sep[network_names_sep %in% names(updated_rep_pv_list_sep)]
+page_views_republican_filtered_sep <- updated_rep_pv_list_sep[matched_names_rep_sep]
+
+matched_names_dem_sep <- network_names_sep[network_names_sep %in% names(updated_dem_pv_list_sep)]
+page_views_democrat_filtered_sep <- updated_dem_pv_list_sep[matched_names_dem_sep]
+
+# order by descending page views
+page_views_republican_filtered_sep <- page_views_republican_filtered_sep[order(unlist(page_views_republican_filtered_sep), decreasing = TRUE)]
+
+page_views_democrat_filtered_sep <- page_views_democrat_filtered_sep[order(unlist(page_views_democrat_filtered_sep), decreasing = TRUE)]
+
+page_views_democrat_filtered_sep <- page_views_democrat_filtered_sep[!(names(page_views_democrat_filtered_sep) %in% pages_to_filter)]
+
+page_views_republican_filtered_sep <- page_views_republican_filtered_sep[!(names(page_views_republican_filtered_sep) %in% pages_to_filter_rep)]
+
+# extract page names of the first 100 pages
+page_names_republican_sep <- names(page_views_republican_filtered_sep)[1:100]
+page_names_democrat_sep <- names(page_views_democrat_filtered_sep)[1:100]
+```
+
 
 
 ```{r page_views_oct}
@@ -1340,7 +1498,7 @@ page_views_democrat_filtered_oct <- page_views_democrat_filtered_oct[!(names(pag
 
 page_views_republican_filtered_oct <- page_views_republican_filtered_oct[!(names(page_views_republican_filtered_oct) %in% pages_to_filter_rep)]
 
-# extract page names of the first 1000 pages
+# extract page names of the first 100 pages
 page_names_republican_oct <- names(page_views_republican_filtered_oct)[1:100]
 page_names_democrat_oct <- names(page_views_democrat_filtered_oct)[1:100]
 ```
@@ -2466,13 +2624,13 @@ random_walk_random_networks <- function(network) {
   )
 }
 
-#results_random_oct20 <- random_walk_random_networks(random_net_oct20_full)
-#results_random_oct20_dem <- results_random_oct20[1]$democrat
-#results_random_oct20_rep <- results_random_oct20[2]$republican
+results_random_oct20 <- random_walk_random_networks(random_net_oct20_full)
+results_random_oct20_dem <- results_random_oct20[1]$democrat
+results_random_oct20_rep <- results_random_oct20[2]$republican
 
 results_random_nov20 <- random_walk_random_networks(random_net_nov20_full)
-results_random_nov20_dem <- results_random_nov19[1]$democrat
-results_random_nov20_rep <- results_random_nov19[2]$republican
+results_random_nov20_dem <- results_random_nov20[1]$democrat
+results_random_nov20_rep <- results_random_nov20[2]$republican
 
 results_random_dec20 <- random_walk_random_networks(random_net_dec20_full)
 results_random_dec20_dem <- results_random_dec20[1]$democrat
@@ -2511,13 +2669,13 @@ exposure_rep_feb21 <- calculate_exposure(results_rep_feb)
 
 # plot the results
 exposure_data <- data.frame(
-  month = c("November 2020", "December 2020", "January 2021", "February 2021"),
-  democrat = c(exposure_dem_nov20, exposure_dem_dec20, exposure_dem_jan21, exposure_dem_feb21),
-  republican = c(exposure_rep_nov20, exposure_rep_dec20, exposure_rep_jan21, exposure_rep_feb21)
+  month = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
+  democrat = c(exposure_dem_oct20, exposure_dem_nov20, exposure_dem_dec20, exposure_dem_jan21, exposure_dem_feb21),
+  republican = c(exposure_rep_oct20, exposure_rep_nov20, exposure_rep_dec20, exposure_rep_jan21, exposure_rep_feb21)
 )
 
 # factorise month 
-exposure_data$month <- factor(exposure_data$month, levels = c("November 2020", "December 2020", "January 2021", "February 2021"))
+exposure_data$month <- factor(exposure_data$month, levels = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
 
 exposure_data_long <- pivot_longer(exposure_data, cols = c(democrat, republican), names_to = "variable", values_to = "value")
 
@@ -2567,8 +2725,8 @@ exposure_percentages_feb <- list(
 )
 
 exposure_df <- bind_rows(
-  #data.frame(month = "October 2020", party = "Democrat", exposure = exposure_percentages_oct$democrat),
-  #data.frame(month = "October 2020", party = "Republican", exposure = exposure_percentages_oct$republican),
+  data.frame(month = "October 2020", party = "Democrat", exposure = exposure_percentages_oct$democrat),
+  data.frame(month = "October 2020", party = "Republican", exposure = exposure_percentages_oct$republican),
   data.frame(month = "November 2020", party = "Democrat", exposure = exposure_percentages_nov$democrat),
   data.frame(month = "November 2020", party = "Republican", exposure = exposure_percentages_nov$republican),
   data.frame(month = "December 2020", party = "Democrat", exposure = exposure_percentages_dec$democrat),
@@ -2580,7 +2738,7 @@ exposure_df <- bind_rows(
 )
 
 # factorise month
-exposure_df$month <- factor(exposure_df$month, levels = c("November 2020", "December 2020", "January 2021", "February 2021"))
+exposure_df$month <- factor(exposure_df$month, levels = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
 
 
 add_steps <- function(df) {
@@ -2595,7 +2753,7 @@ exposure_df <- exposure_df %>%
   do(add_steps(.))
 
 # Plot the data using ggplot2
-ggplot(exposure_df, aes(x = steps, y = exposure, color = party, linetype = month, group = interaction(month, party))) +
+ggplot(exposure_df, aes(x = steps, y = exposure, color = month, linetype = party, group = interaction(month, party))) +
   geom_line() +
   geom_point() +
   labs(
@@ -2609,6 +2767,8 @@ ggplot(exposure_df, aes(x = steps, y = exposure, color = party, linetype = month
 
 ```{r}
 # calculate exposure for results of random networks 
+exposure_random_oct20 <- calculate_exposure(results_random_oct20_dem)
+exposure_random_oct20_rep <- calculate_exposure(results_random_oct20_rep)
 exposure_random_nov20 <- calculate_exposure(results_random_nov20_dem)
 exposure_random_nov20_rep <- calculate_exposure(results_random_nov20_rep)
 exposure_random_dec20 <- calculate_exposure(results_random_dec20_dem)
@@ -2620,14 +2780,14 @@ exposure_random_feb21_rep <- calculate_exposure(results_random_feb21_rep)
 
 # plot the results
 exposure_random_data <- data.frame(
-  month = c("November 2020", "December 2020", "January 2021", "February 2021"),
-  democrat = c(exposure_random_nov20, exposure_random_dec20, exposure_random_jan21, exposure_random_feb21),
-  republican = c(exposure_random_nov20_rep, exposure_random_dec20_rep, exposure_random_jan21_rep, exposure_random_feb21_rep)
+  month = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
+  democrat = c(exposure_random_oct20, exposure_random_nov20, exposure_random_dec20, exposure_random_jan21, exposure_random_feb21),
+  republican = c(exposure_random_oct20_rep, exposure_random_nov20_rep, exposure_random_dec20_rep, exposure_random_jan21_rep, exposure_random_feb21_rep)
 )
 
 
 # factorise month
-exposure_random_data$month <- factor(exposure_random_data$month, levels = c("November 2020", "December 2020", "January 2021", "February 2021"))
+exposure_random_data$month <- factor(exposure_random_data$month, levels = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
 
 exposure_random_data_long <- pivot_longer(exposure_random_data, cols = c(democrat, republican), names_to = "variable", values_to = "value")
 
@@ -2642,6 +2802,11 @@ ggplot(exposure_random_data_long, aes(x = month, y = value, fill = variable)) +
 
 ```{r}
 # calculate exposure percentage for results of random networks
+exposure_percentages_random_oct <- list(
+  democrat = calculate_exposure_percentage(results_random_oct20_dem),
+  republican = calculate_exposure_percentage(results_random_oct20_rep)
+)
+
 exposure_percentages_random_nov <- list(
   democrat = calculate_exposure_percentage(results_random_nov20_dem),
   republican = calculate_exposure_percentage(results_random_nov20_rep)
@@ -2663,6 +2828,7 @@ exposure_percentages_random_feb <- list(
 )
 
 exposure_random_df <- bind_rows(
+  data.frame(month = "October 2020", party = "Democrat", exposure = exposure_percentages_random_oct$democrat),
   data.frame(month = "November 2020", party = "Democrat", exposure = exposure_percentages_random_nov$democrat),
   data.frame(month = "November 2020", party = "Republican", exposure = exposure_percentages_random_nov$republican),
   data.frame(month = "December 2020", party = "Democrat", exposure = exposure_percentages_random_dec$democrat),
@@ -2674,7 +2840,7 @@ exposure_random_df <- bind_rows(
 )
 
 # factorise month
-exposure_random_df$month <- factor(exposure_random_df$month, levels = c("November 2020", "December 2020", "January 2021", "February 2021"))
+exposure_random_df$month <- factor(exposure_random_df$month, levels = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
 
 # Apply the function to add steps
 exposure_random_df <- exposure_random_df %>%
