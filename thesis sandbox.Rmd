@@ -17,6 +17,8 @@ library(dplyr)
 library(ggplot2)
 library("httr")
 library(tidyverse)
+library(knitr)
+library(kableExtra)
 set.seed(42)
 ```
 
@@ -333,11 +335,15 @@ clean_graph <- function(graph) {
   cleaned_graph <- delete_vertices(graph, vertices_to_delete)
   
   # check number of republican and democrat nodes
-  print(sum(V(cleaned_graph)$party == "Republican"))
-  print(sum(V(cleaned_graph)$party == "Democrat"))
+  #print(sum(V(cleaned_graph)$party == "Republican"))
+  #print(sum(V(cleaned_graph)$party == "Democrat"))
+  
+  #check number of isolates
+  #print(sum(degree(cleaned_graph) == 0))
 
   # Remove isolates
-  cleaned_graph <- delete_vertices(cleaned_graph, which(degree(cleaned_graph) == 0))
+  cleaned_graph <- delete_vertices(
+    cleaned_graph, which(degree(cleaned_graph) == 0))
 
   # Remove the old non-cleaned graph from memory
   remove(graph)
@@ -372,6 +378,13 @@ net_clickaug21 <- clean_graph(net_clickaug21)
 net_clicksep21 <- clean_graph(net_clicksep21)
 net_clickoct21 <- clean_graph(net_clickoct21)
 net_clicknov21 <- clean_graph(net_clicknov21)
+
+# count number of republican and democrat nodes
+sum(V(net_clicksep20)$party == "Republican")
+sum(V(net_clicksep20)$party == "Democrat")
+
+# check unique values for party
+unique(V(net_clicksep20)$party)
 ```
 
 ```{r extract_neighbors}
@@ -462,9 +475,6 @@ net_clickaug21 <- update_graph_with_affiliations(net_clickaug21)
 net_clicksep21 <- update_graph_with_affiliations(net_clicksep21)
 net_clickoct21 <- update_graph_with_affiliations(net_clickoct21)
 net_clicknov21 <- update_graph_with_affiliations(net_clicknov21)
-
-# check the number of republican and democrat nodes
-print(sum(V(net_clicknov20)$party == "Democrat"))
 ```
 
 ```{r descriptive_analysis}
@@ -494,43 +504,43 @@ analyze_graph <- function(graph) {
 }
 
 # analyse networks
-results_nov19 <- analyze_graph(net_clicknov19)
-results_dec19 <- analyze_graph(net_clickdec19)
-results_jan20 <- analyze_graph(net_clickjan20)
-results_feb20 <- analyze_graph(net_clickfeb20)
-results_mar20 <- analyze_graph(net_clickmar20)
-results_apr20 <- analyze_graph(net_clickapr20)
-results_may20 <- analyze_graph(net_clickmay20)
-results_jun20 <- analyze_graph(net_clickjun20)
-results_jul20 <- analyze_graph(net_clickjul20)
-results_aug20 <- analyze_graph(net_clickaug20)
-results_sep20 <- analyze_graph(net_clicksep20)
-results_oct20 <- analyze_graph(net_clickoct20)
-results_nov20 <- analyze_graph(net_clicknov20)
-results_dec20 <- analyze_graph(net_clickdec20)
-results_jan21 <- analyze_graph(net_clickjan21)
-results_feb21 <- analyze_graph(net_clickfeb21)
-results_mar21 <- analyze_graph(net_clickmar21)
-results_apr21 <- analyze_graph(net_clickapr21)
-results_may21 <- analyze_graph(net_clickmay21)
-results_jun21 <- analyze_graph(net_clickjun21)
-results_jul21 <- analyze_graph(net_clickjul21)
-results_aug21 <- analyze_graph(net_clickaug21)
-results_sep21 <- analyze_graph(net_clicksep21)
-results_oct21 <- analyze_graph(net_clickoct21)
-results_nov21 <- analyze_graph(net_clicknov21)
+analyse_nov19 <- analyze_graph(net_clicknov19)
+analyse_dec19 <- analyze_graph(net_clickdec19)
+analyse_jan20 <- analyze_graph(net_clickjan20)
+analyse_feb20 <- analyze_graph(net_clickfeb20)
+analyse_mar20 <- analyze_graph(net_clickmar20)
+analyse_apr20 <- analyze_graph(net_clickapr20)
+analyse_may20 <- analyze_graph(net_clickmay20)
+analyse_jun20 <- analyze_graph(net_clickjun20)
+analyse_jul20 <- analyze_graph(net_clickjul20)
+analyse_aug20 <- analyze_graph(net_clickaug20)
+analyse_sep20 <- analyze_graph(net_clicksep20)
+analyse_oct20 <- analyze_graph(net_clickoct20)
+analyse_nov20 <- analyze_graph(net_clicknov20)
+analyse_dec20 <- analyze_graph(net_clickdec20)
+analyse_jan21 <- analyze_graph(net_clickjan21)
+analyse_feb21 <- analyze_graph(net_clickfeb21)
+analyse_mar21 <- analyze_graph(net_clickmar21)
+analyse_apr21 <- analyze_graph(net_clickapr21)
+analyse_may21 <- analyze_graph(net_clickmay21)
+analyse_jun21 <- analyze_graph(net_clickjun21)
+analyse_jul21 <- analyze_graph(net_clickjul21)
+analyse_aug21 <- analyze_graph(net_clickaug21)
+analyse_sep21 <- analyze_graph(net_clicksep21)
+analyse_oct21 <- analyze_graph(net_clickoct21)
+analyse_nov21 <- analyze_graph(net_clicknov21)
 ```
 
 ```{r number_of_pages}
 number_pages_republican <- data.frame(
   Month = c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021"),
-  Pages = c(results_nov19$num_republican, results_dec19$num_republican, results_jan20$num_republican, results_feb20$num_republican, results_mar20$num_republican, results_apr20$num_republican, results_may20$num_republican, results_jun20$num_republican, results_jul20$num_republican, results_aug20$num_republican, results_sep20$num_republican, results_oct20$num_republican, results_nov20$num_republican, results_dec20$num_republican, results_jan21$num_republican, results_feb21$num_republican, results_mar21$num_republican, results_apr21$num_republican, results_may21$num_republican, results_jun21$num_republican, results_jul21$num_republican, results_aug21$num_republican, results_sep21$num_republican, results_oct21$num_republican, results_nov21$num_republican))
+  Pages = c(analyse_nov19$num_republican, analyse_dec19$num_republican, analyse_jan20$num_republican, analyse_feb20$num_republican, analyse_mar20$num_republican, analyse_apr20$num_republican, analyse_may20$num_republican, analyse_jun20$num_republican, analyse_jul20$num_republican, analyse_aug20$num_republican, analyse_sep20$num_republican, analyse_oct20$num_republican, analyse_nov20$num_republican, analyse_dec20$num_republican, analyse_jan21$num_republican, analyse_feb21$num_republican, analyse_mar21$num_republican, analyse_apr21$num_republican, analyse_may21$num_republican, analyse_jun21$num_republican, analyse_jul21$num_republican, analyse_aug21$num_republican, analyse_sep21$num_republican, analyse_oct21$num_republican, analyse_nov21$num_republican))
 
 number_pages_republican$Month <- factor(number_pages_republican$Month, levels = number_pages_republican$Month)
 
 number_pages_democrat <- data.frame(
   Month = c("November 2019", "December 2019", "January 2020", "February 2020", "March 2020", "April 2020", "May 2020", "June 2020", "July 2020", "August 2020", "September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021"),
-  Pages = c(results_nov19$num_democrat, results_dec19$num_democrat, results_jan20$num_democrat, results_feb20$num_democrat, results_mar20$num_democrat, results_apr20$num_democrat, results_may20$num_democrat, results_jun20$num_democrat, results_jul20$num_democrat, results_aug20$num_democrat, results_sep20$num_democrat, results_oct20$num_democrat, results_nov20$num_democrat, results_dec20$num_democrat, results_jan21$num_democrat, results_feb21$num_democrat, results_mar21$num_democrat, results_apr21$num_democrat, results_may21$num_democrat, results_jun21$num_democrat, results_jul21$num_democrat, results_aug21$num_democrat, results_sep21$num_democrat, results_oct21$num_democrat, results_nov21$num_democrat))
+  Pages = c(analyse_nov19$num_democrat, analyse_dec19$num_democrat, analyse_jan20$num_democrat, analyse_feb20$num_democrat, analyse_mar20$num_democrat, analyse_apr20$num_democrat, analyse_may20$num_democrat, analyse_jun20$num_democrat, analyse_jul20$num_democrat, analyse_aug20$num_democrat, analyse_sep20$num_democrat, analyse_oct20$num_democrat, analyse_nov20$num_democrat, analyse_dec20$num_democrat, analyse_jan21$num_democrat, analyse_feb21$num_democrat, analyse_mar21$num_democrat, analyse_apr21$num_democrat, analyse_may21$num_democrat, analyse_jun21$num_democrat, analyse_jul21$num_democrat, analyse_aug21$num_democrat, analyse_sep21$num_democrat, analyse_oct21$num_democrat, analyse_nov21$num_democrat))
 
 number_pages_democrat$Month <- factor(number_pages_democrat$Month, levels = number_pages_democrat$Month)
 
@@ -553,12 +563,7 @@ ggplot(long_data, aes(x = Month, y = Count, fill = Party)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 # Create data frames for each category
-results <- list(
-  nov19 = results_nov19, dec19 = results_dec19, jan20 = results_jan20, feb20 = results_feb20, mar20 = results_mar20, 
-  apr20 = results_apr20, may20 = results_may20, jun20 = results_jun20, jul20 = results_jul20, aug20 = results_aug20, 
-  sep20 = results_sep20, oct20 = results_oct20, nov20 = results_nov20, dec20 = results_dec20, jan21 = results_jan21, 
-  feb21 = results_feb21, mar21 = results_mar21, apr21 = results_apr21, may21 = results_may21, jun21 = results_jun21, 
-  jul21 = results_jul21, aug21 = results_aug21, sep21 = results_sep21, oct21 = results_oct21, nov21 = results_nov21
+results <- list(analyse_nov19,analyse_dec19, analyse_jan20, analyse_feb20, analyse_mar20, analyse_apr20, analyse_may20, analyse_jun20, analyse_jul20, analyse_aug20, analyse_sep20, analyse_oct20, analyse_nov20, analyse_dec20, analyse_jan21, analyse_feb21, analyse_mar21, analyse_apr21, analyse_may21, analyse_jun21, analyse_jul21, analyse_aug21, analyse_sep21, analyse_oct21, analyse_nov21
 )
 
 # Define the months
@@ -567,23 +572,35 @@ months <- c("November 2019", "December 2019", "January 2020", "February 2020", "
             "November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", 
             "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021")
 
-# Initialize an empty data frame
-total_pages <- data.frame(
-  Month = months,
-  TotalPages = sapply(results, function(res) {
-    res$num_republican + res$num_democrat
-  })
-)
-
 total_rep_dem_pages <- data.frame(
   Month = months,
-  TotalRepDemPages = sapply(results, function(res) {
-    res$num_republican + res$num_democrat
+  TotalRepPages = sapply(results, function(res) {
+    res$num_republican
+  }),
+  TotalDemPages = sapply(results, function(res) {
+    res$num_democrat
   })
 )
 
-# Calculate the average number of Republican and Democrat pages per month
-mean(total_rep_dem_pages$TotalRepDemPages)
+total_rep_dem_pages_table <- kable(total_rep_dem_pages, 
+                                   caption = "<div style='text-align: center;'><span style='color: black; font-weight: bold;'>Table 1. Total Pages included Hyperlink Networks by Month</span></div>",
+                                   col.names = c("Month", "Republican Pages", "Democrat Pages"),
+                                   format = "html") %>%
+  kable_styling(full_width = FALSE, font_size = 12) %>%
+  row_spec(0, bold = TRUE, font_size = 14, color = "black", background = "#f2f2f2") %>%
+  row_spec(1:nrow(total_rep_dem_pages), font_size = 12) %>%
+  column_spec(1, width = "2in") %>%
+  column_spec(2, width = "2in") %>%
+  # Use CSS to apply font styling
+  kable_styling(bootstrap_options = c("striped", "hover"), 
+                font_size = 12, 
+                position = "center", 
+                fixed_thead = TRUE) %>%
+  # Ensure the HTML table renders correctly in the environment
+  htmltools::browsable()
+
+# Print the table
+total_rep_dem_pages_table
 ```
 
 
@@ -712,6 +729,7 @@ net_clickjul20_filtered <- delete_vertices(
 net_clickaug20_filtered <- delete_vertices(
   net_clickaug20, which(V(net_clickaug20)$party == "Other"))
 
+# remove other or politics
 net_clicksep20_filtered <- delete_vertices(
   net_clicksep20, which(V(net_clicksep20)$party == "Other"))
 
@@ -862,141 +880,39 @@ ggplot(results_long, aes(x = Month, y = Count, color = Interaction, group = Inte
 
 
 ```{r modularity}
-# calculate modularity for november '19
-membership_nov19 <- V(net_clicknov19_filtered)$party
-membership_nov19 <- as.numeric(factor(membership_nov19, levels = c("Democrat", "Republican")))
-communities_nov19 <- modularity(net_clicknov19_filtered, membership_nov19, weights = net_clicknov19_filtered$weight)
+# Define a function to calculate modularity for a given network and party membership
+calculate_modularity <- function(network, party_levels = c("Democrat", "Republican")) {
+  membership <- V(network)$party
+  membership <- as.numeric(factor(membership, levels = party_levels))
+  mod <- modularity(network, membership, weights = E(network)$weight)
+  return(mod)
+}
 
-# calculate modularity for december '19
-membership_dec19 <- V(net_clickdec19_filtered)$party
-membership_dec19 <- as.numeric(factor(membership_dec19, levels = c("Democrat", "Republican")))
-communities_dec19 <- modularity(net_clickdec19_filtered, membership_dec19, weights = net_clickdec19_filtered$weight)
-
-# calculate modularity for january '20
-membership_jan20 <- V(net_clickjan20_filtered)$party
-membership_jan20 <- as.numeric(factor(membership_jan20, levels = c("Democrat", "Republican")))
-communities_jan20 <- modularity(net_clickjan20_filtered, membership_jan20, weights = net_clickjan20_filtered$weight)
-
-# calculate modularity for february '20
-membership_feb20 <- V(net_clickfeb20_filtered)$party
-membership_feb20 <- as.numeric(factor(membership_feb20, levels = c("Democrat", "Republican")))
-communities_feb20 <- modularity(net_clickfeb20_filtered, membership_feb20, weights = net_clickfeb20_filtered$weight)
-
-# calculate modularity for march '20
-membership_mar20 <- V(net_clickmar20_filtered)$party
-membership_mar20 <- as.numeric(factor(membership_mar20, levels = c("Democrat", "Republican")))
-communities_mar20 <- modularity(net_clickmar20_filtered, membership_mar20, weights = net_clickmar20_filtered$weight)
-
-# calculate modularity for april '20
-membership_apr20 <- V(net_clickapr20_filtered)$party
-membership_apr20 <- as.numeric(factor(membership_apr20, levels = c("Democrat", "Republican")))
-communities_apr20 <- modularity(net_clickapr20_filtered, membership_apr20, weights = net_clickapr20_filtered$weight)
-
-# calculate modularity for may '20
-membership_may20 <- V(net_clickmay20_filtered)$party
-membership_may20 <- as.numeric(factor(membership_may20, levels = c("Democrat", "Republican")))
-communities_may20 <- modularity(net_clickmay20_filtered, membership_may20, weights = net_clickmay20_filtered$weight)
-
-# calculate modularity for june '20
-membership_jun20 <- V(net_clickjun20_filtered)$party
-membership_jun20 <- as.numeric(factor(membership_jun20, levels = c("Democrat", "Republican")))
-communities_jun20 <- modularity(net_clickjun20_filtered, membership_jun20, weights = net_clickjun20_filtered$weight)
-
-# calculate modularity for july '20
-membership_jul20 <- V(net_clickjul20_filtered)$party
-membership_jul20 <- as.numeric(factor(membership_jul20, levels = c("Democrat", "Republican")))
-communities_jul20 <- modularity(net_clickjul20_filtered, membership_jul20, weights = net_clickjul20_filtered$weight)
-
-# calculate modularity for august '20
-membership_aug20 <- V(net_clickaug20_filtered)$party
-membership_aug20 <- as.numeric(factor(membership_aug20, levels = c("Democrat", "Republican")))
-communities_aug20 <- modularity(net_clickaug20_filtered, membership_aug20, weights = net_clickaug20_filtered$weight)
-
-# calculate modularity for september '20
-membership_sep20 <- V(net_clicksep20_filtered)$party
-membership_sep20 <- as.numeric(factor(membership_sep20, levels = c("Democrat", "Republican")))
-communities_sep20 <- modularity(net_clicksep20_filtered, membership_sep20, weights = net_clicksep20_filtered$weight)
-
-# calculate modularity for october '20
-membership_oct20 <- V(net_clickoct20_filtered)$party
-membership_oct20 <- as.numeric(factor(membership_oct20, levels = c("Democrat", "Republican")))
-communities_oct20 <- modularity(net_clickoct20_filtered, membership_oct20, weights = net_clickoct20_filtered$weight)
-
-# calculate modularity for november '20
-membership_nov20 <- V(net_clicknov20_filtered)$party
-membership_nov20 <- as.numeric(factor(membership_nov20, levels = c("Democrat", "Republican")))
-communities_nov20 <- modularity(net_clicknov20_filtered, membership_nov20, weights = net_clicknov20_filtered$weight)
-
-# calculate modularity for december '20
-membership_dec20 <- V(net_clickdec20_filtered)$party
-membership_dec20 <- as.numeric(factor(membership_dec20, levels = c("Democrat", "Republican")))
-communities_dec20 <- modularity(net_clickdec20_filtered, membership_dec20, weights = net_clickdec20_filtered$weight)
-
-# calculate modularity for january '21
-membership_jan21 <- V(net_clickjan21_filtered)$party
-membership_jan21 <- as.numeric(factor(membership_jan21, levels = c("Democrat", "Republican")))
-communities_jan21 <- modularity(net_clickjan21_filtered, membership_jan21, weights = net_clickjan21_filtered$weight)
-
-# calculate modularity for february '21
-membership_feb21 <- V(net_clickfeb21_filtered)$party
-membership_feb21 <- as.numeric(factor(membership_feb21, levels = c("Democrat", "Republican")))
-communities_feb21 <- modularity(net_clickfeb21_filtered, membership_feb21, weights = net_clickfeb21_filtered$weight)
-
-# calculate modularity for march '21
-membership_mar21 <- V(net_clickmar21_filtered)$party
-membership_mar21 <- as.numeric(factor(membership_mar21, levels = c("Democrat", "Republican")))
-communities_mar21 <- modularity(net_clickmar21_filtered, membership_mar21, weights = net_clickmar21_filtered$weight)
-
-# calculate modularity for april '21
-membership_apr21 <- V(net_clickapr21_filtered)$party
-membership_apr21 <- as.numeric(factor(membership_apr21, levels = c("Democrat", "Republican")))
-communities_apr21 <- modularity(net_clickapr21_filtered, membership_apr21, weights = net_clickapr21_filtered$weight)
-
-# calculate modularity for may '21
-membership_may21 <- V(net_clickmay21_filtered)$party
-membership_may21 <- as.numeric(factor(membership_may21, levels = c("Democrat", "Republican")))
-communities_may21 <- modularity(net_clickmay21_filtered, membership_may21, weights = net_clickmay21_filtered$weight)
-
-# calculate modularity for june '21
-membership_jun21 <- V(net_clickjun21_filtered)$party
-membership_jun21 <- as.numeric(factor(membership_jun21, levels = c("Democrat", "Republican")))
-communities_jun21 <- modularity(net_clickjun21_filtered, membership_jun21, weights = net_clickjun21_filtered$weight)
-
-# calculate modularity for july '21
-membership_jul21 <- V(net_clickjul21_filtered)$party
-membership_jul21 <- as.numeric(factor(membership_jul21, levels = c("Democrat", "Republican")))
-communities_jul21 <- modularity(net_clickjul21_filtered, membership_jul21, weights = net_clickjul21_filtered$weight)
-
-# calculate modularity for august '21
-membership_aug21 <- V(net_clickaug21_filtered)$party
-membership_aug21 <- as.numeric(factor(membership_aug21, levels = c("Democrat", "Republican")))
-communities_aug21 <- modularity(net_clickaug21_filtered, membership_aug21, weights = net_clickaug21_filtered$weight)
-
-# calculate modularity for september '21
-membership_sep21 <- V(net_clicksep21_filtered)$party
-membership_sep21 <- as.numeric(factor(membership_sep21, levels = c("Democrat", "Republican")))
-communities_sep21 <- modularity(net_clicksep21_filtered, membership_sep21, weights = net_clicksep21_filtered$weight)
-
-# calculate modularity for october '21
-membership_oct21 <- V(net_clickoct21_filtered)$party
-membership_oct21 <- as.numeric(factor(membership_oct21, levels = c("Democrat", "Republican")))
-communities_oct21 <- modularity(net_clickoct21_filtered, membership_oct21, weights = net_clickoct21_filtered$weight)
-
-# calculate modularity for november '21
-membership_nov21 <- V(net_clicknov21_filtered)$party
-membership_nov21 <- as.numeric(factor(membership_nov21, levels = c("Democrat", "Republican")))
-communities_nov21 <- modularity(net_clicknov21_filtered, membership_nov21, weights = net_clicknov21_filtered$weight)
-
+# Calculate modularity for each robust network version
 modularity_scores <- data.frame(
-  Month = c("November '19", "December '19", "January '20", "February '20", "March '20", "April '20", "May '20", "June '20", "July '20", "August '20", "September '20", "October '20", "November '20", "December '20", "January '21", "February '21", "March '21", "April '21", "May '21", "June '21", "July '21", "August '21", "September '21", "November '21"),
+  Month = c(
+    "November '19", "December '19", "January '20", "February '20", "March '20", "April '20", "May '20", "June '20",
+    "July '20", "August '20", "September '20", "October '20", "November '20", "December '20",
+    "January '21", "February '21", "March '21", "April '21", "May '21", "June '21", "July '21", "August '21",
+    "September '21", "October '21", "November '21"
+  ),
   Modularity = c(
-    communities_nov19, communities_dec19, communities_jan20, communities_feb20, communities_mar20, communities_apr20, communities_may20, communities_jun20, communities_jul20, communities_aug20, communities_sep20, communities_oct20, communities_nov20, communities_dec20, communities_jan21, communities_feb21, communities_mar21, communities_apr21, communities_may21, communities_jun21, communities_jul21, communities_aug21, communities_sep21, communities_nov21))
+    calculate_modularity(net_clicknov19_filtered), calculate_modularity(net_clickdec19_filtered), calculate_modularity(net_clickjan20_filtered),
+    calculate_modularity(net_clickfeb20_filtered), calculate_modularity(net_clickmar20_filtered), calculate_modularity(net_clickapr20_filtered),
+    calculate_modularity(net_clickmay20_filtered), calculate_modularity(net_clickjun20_filtered), calculate_modularity(net_clickjul20_filtered),
+    calculate_modularity(net_clickaug20_filtered), calculate_modularity(net_clicksep20_filtered), calculate_modularity(net_clickoct20_filtered),
+    calculate_modularity(net_clicknov20_filtered), calculate_modularity(net_clickdec20_filtered), calculate_modularity(net_clickjan21_filtered),
+    calculate_modularity(net_clickfeb21_filtered), calculate_modularity(net_clickmar21_filtered), calculate_modularity(net_clickapr21_filtered),
+    calculate_modularity(net_clickmay21_filtered), calculate_modularity(net_clickjun21_filtered), calculate_modularity(net_clickjul21_filtered),
+    calculate_modularity(net_clickaug21_filtered), calculate_modularity(net_clicksep21_filtered), calculate_modularity(net_clickoct21_filtered),
+    calculate_modularity(net_clicknov21_filtered)
+  )
+)
 
 modularity_scores$Month <- factor(modularity_scores$Month, levels = modularity_scores$Month)
-
 average_modularity <- mean(modularity_scores$Modularity, na.rm = TRUE)
 
-
+# Plot the modularity scores
 ggplot(modularity_scores, aes(x = Month, y = Modularity)) +
   geom_point(size = 0.8, color = "purple") +  # Add points
   geom_line(aes(group = 1), color = "purple") +  # Connect points with lines
@@ -1019,7 +935,6 @@ ggplot(modularity_scores, aes(x = Month, y = Modularity)) +
   ) +
   scale_y_continuous(limits = c(0, 0.4))
 ```
-
 
 ```{r boundary_polarisation}
 # Define the function to compute Spearman correlation of weighted degrees and cross-boundary connections
@@ -1205,7 +1120,35 @@ random_net_sep21 <- sample_degseq(out.deg = degree(net_clicksep21_filtered, mode
 random_net_oct21 <- sample_degseq(out.deg = degree(net_clickoct21_filtered, mode='out'), in.deg = degree(net_clickoct21_filtered, mode='in'), method = "simple")
 
 random_net_nov21 <- sample_degseq(out.deg = degree(net_clicknov21_filtered, mode='out'), in.deg = degree(net_clicknov21_filtered, mode='in'), method = "simple")
+```
 
+
+```{r}
+adjust_weights <- function(graph, target_strength, max_iter = 1000, tol = 1e-3) {
+  current_strength <- strength(graph, mode = "out", weights = E(graph)$weight)
+  iter <- 0
+  while (iter < max_iter && max(abs(current_strength - target_strength)) > tol) {
+    for (i in seq_along(V(graph))) {
+      neighbors <- neighbors(graph, i)
+      if (length(neighbors) == 0) next
+      current_sum <- sum(E(graph)[.from(i)]$weight)
+      target_sum <- target_strength[i]
+      if (current_sum == 0) next
+      adjustment_ratio <- target_sum / current_sum
+      E(graph)[.from(i)]$weight <- E(graph)[.from(i)]$weight * adjustment_ratio
+    }
+    current_strength <- strength(graph, mode = "out", weights = E(graph)$weight)
+    iter <- iter + 1
+  }
+  return(graph)
+}
+
+random_net_nov19 <- adjust_weights(random_net_nov19, target_strength = strength(net_clicknov19_filtered, mode = "out"))
+```
+
+
+
+```{r boundary_polarisation}
 assign_attributes_and_calculate_correlation <- function(random_net, original_net, correlation = TRUE) {
   
   random_net_name <- deparse(substitute(random_net))
@@ -1302,6 +1245,8 @@ ggplot(boundary_polarisation_scores, aes(x = Month)) +
 
 ```{r save_image2}
 save.image("data/click_networks_rw.RData")
+
+load("data/click_networks_rw.RData")
 ```
 
 ```{r define_pv_function}
@@ -2171,6 +2116,108 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
 }
 ```
 
+```{r}
+# get number of "Other" pages for September, October, November, December, January and February
+
+(n_other_sep <- sum(V(net_clicksep20)$party == "Other"))
+(n_other_oct <- sum(V(net_clickoct20)$party == "Other"))
+(n_other_nov <- sum(V(net_clicknov20)$party == "Other"))
+(n_other_dec <- sum(V(net_clickdec20)$party == "Other"))
+(n_other_jan <- sum(V(net_clickjan21)$party == "Other"))
+(n_other_feb <- sum(V(net_clickfeb21)$party == "Other"))
+```
+
+
+
+```{r rw_september}
+# run random walks for September
+
+results_sep20_1d <- analyze_party_walk(
+  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 10)
+
+results_sep20_2d <- analyze_party_walk(
+  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 10)
+
+results_sep20_3d <- analyze_party_walk(
+  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 10)
+
+results_sep20_4d <- analyze_party_walk(
+  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 10)
+
+results_sep20_5d <- analyze_party_walk(
+  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 10)
+
+results_sep20_1r <- analyze_party_walk(
+  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 10)
+
+results_sep20_2r <- analyze_party_walk(
+  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 10)
+
+results_sep20_3r <- analyze_party_walk(
+  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 10)
+
+results_sep20_4r <- analyze_party_walk(
+  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 10)
+
+results_sep20_5r <- analyze_party_walk(
+  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 10)
+
+# aggregate the results
+data_list_dem_sep <- list(
+  results_sep20_1d, results_sep20_2d, results_sep20_3d, results_sep20_4d, results_sep20_5d)
+
+data_list_rep_sep <- list(
+  results_sep20_1r, results_sep20_2r, results_sep20_3r, results_sep20_4r, results_sep20_5r)
+
+# Initialize accumulator
+results_dem_sep <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
+
+steps_count <- 0
+
+# Iterate through each object to sum and count
+for (obj in data_list_dem_sep) {
+  results_dem_sep$steps <- results_dem_sep$steps + obj$steps
+  results_dem_sep$n_part_shift <- results_dem_sep$n_part_shift + obj$n_part_shift
+  results_dem_sep$n_trapped <- results_dem_sep$n_trapped + obj$n_trapped
+  results_dem_sep$n_republican <- results_dem_sep$n_republican + obj$n_republican
+  results_dem_sep$n_democrat <- results_dem_sep$n_democrat + obj$n_democrat
+  results_dem_sep$n_other <- results_dem_sep$n_other + obj$n_other
+  results_dem_sep$n_of_shift_steps_1 <- results_dem_sep$n_of_shift_steps_1 + obj$n_of_shift_steps_1
+  results_dem_sep$n_of_shift_steps_2 <- results_dem_sep$n_of_shift_steps_2 + obj$n_of_shift_steps_2
+  results_dem_sep$n_of_shift_steps_3 <- results_dem_sep$n_of_shift_steps_3 + obj$n_of_shift_steps_3
+  results_dem_sep$n_of_shift_steps_4 <- results_dem_sep$n_of_shift_steps_4 + obj$n_of_shift_steps_4
+  results_dem_sep$n_of_shift_steps_5 <- results_dem_sep$n_of_shift_steps_5 + obj$n_of_shift_steps_5
+  steps_count <- steps_count + 1
+}
+
+results_dem_sep$steps <- results_dem_sep$steps / steps_count
+
+# initialize accumulator
+results_rep_sep <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
+
+steps_count <- 0
+
+# Iterate through each object to sum and count
+
+for (obj in data_list_rep_sep) {
+  results_rep_sep$steps <- results_rep_sep$steps + obj$steps
+  results_rep_sep$n_part_shift <- results_rep_sep$n_part_shift + obj$n_part_shift
+  results_rep_sep$n_trapped <- results_rep_sep$n_trapped + obj$n_trapped
+  results_rep_sep$n_republican <- results_rep_sep$n_republican + obj$n_republican
+  results_rep_sep$n_democrat <- results_rep_sep$n_democrat + obj$n_democrat
+  results_rep_sep$n_other <- results_rep_sep$n_other + obj$n_other
+  results_rep_sep$n_of_shift_steps_1 <- results_rep_sep$n_of_shift_steps_1 + obj$n_of_shift_steps_1
+  results_rep_sep$n_of_shift_steps_2 <- results_rep_sep$n_of_shift_steps_2 + obj$n_of_shift_steps_2
+  results_rep_sep$n_of_shift_steps_3 <- results_rep_sep$n_of_shift_steps_3 + obj$n_of_shift_steps_3
+  results_rep_sep$n_of_shift_steps_4 <- results_rep_sep$n_of_shift_steps_4 + obj$n_of_shift_steps_4
+  results_rep_sep$n_of_shift_steps_5 <- results_rep_sep$n_of_shift_steps_5 + obj$n_of_shift_steps_5
+  steps_count <- steps_count + 1
+}
+
+results_rep_sep$steps <- results_rep_sep$steps / steps_count
+```
+
+
 ```{r rw_october}
 # run random walks for October
 
@@ -2567,7 +2614,37 @@ for (obj in data_list_rep_feb) {
 results_rep_feb$steps <- results_rep_feb$steps / steps_count
 ```
 
+```{r}
+# Create the table
+results <- data.frame(
+  Month = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
+  avg_steps_dem = c(results_dem_sep$steps, results_dem_oct$steps, results_dem_nov$steps, results_dem_dec$steps, results_dem_jan$steps, results_dem_feb$steps),
+  avg_steps_rep = c(results_rep_sep$steps, results_rep_oct$steps, results_rep_nov$steps, results_rep_dec$steps, results_rep_jan$steps, results_rep_feb$steps),
+  avg_shifts_dem = c(results_dem_sep$n_part_shift, results_dem_oct$n_part_shift, results_dem_nov$n_part_shift, results_dem_dec$n_part_shift, results_dem_jan$n_part_shift, results_dem_feb$n_part_shift),
+  avg_shifts_rep = c(results_rep_sep$n_part_shift, results_rep_oct$n_part_shift, results_rep_nov$n_part_shift, results_rep_dec$n_part_shift, results_rep_jan$n_part_shift, results_rep_feb$n_part_shift)
+)
+
+# Display the table
+rw_table <- kable(results, caption = "<span style='color: black; font-weight: bold'>Table 2. Results of Random Walks by Month</span>")
+
+rw_table <- kable(results, 
+                   caption = "<div style='text-align: center;'><span style='color: black; font-weight: bold;'>Table 2. Results of Random Walks by Month</span></div>",
+                   col.names = c("Month", "Average Steps (Democrat)", "Average Steps (Republican)", "N of Shifts (Democrat)", "N of Shifts (Republican)")) %>%
+  kable_styling(full_width = FALSE, 
+                font_size = 12,
+                html_font = "Times New Roman") %>%
+  add_header_above(c(" " = 1, "Results" = 4)) %>%
+  row_spec(0, bold = TRUE, font_size = 14, color = "black", background = "#f2f2f2") %>%
+  row_spec(1:nrow(results), font_size = 12)
+
+# Print the table
+rw_table
+```
+
+
 ```{r create_random_nets_for_rw}
+random_net_sep20_full <- sample_degseq(out.deg = degree(net_clicksep20, mode='out'), in.deg = degree(net_clicksep20, mode='in'), method = "simple")
+
 random_net_oct20_full <- sample_degseq(out.deg = degree(net_clickoct20, mode='out'), in.deg = degree(net_clickoct20, mode='in'), method = "simple")
 
 random_net_nov20_full <- sample_degseq(out.deg = degree(net_clicknov20, mode='out'), in.deg = degree(net_clicknov20, mode='in'), method = "simple")
@@ -2578,6 +2655,7 @@ random_net_jan21_full <- sample_degseq(out.deg = degree(net_clickjan21, mode='ou
 
 random_net_feb21_full <- sample_degseq(out.deg = degree(net_clickfeb21, mode='out'), in.deg = degree(net_clickfeb21, mode='in'), method = "simple")
 
+assign_attributes_and_calculate_correlation(random_net_sep20_full, net_clicksep20, correlation = FALSE)
 assign_attributes_and_calculate_correlation(random_net_oct20_full, net_clickoct20, correlation = FALSE)
 assign_attributes_and_calculate_correlation(random_net_nov20_full, net_clicknov20, correlation = FALSE)
 assign_attributes_and_calculate_correlation(random_net_dec20_full, net_clickdec20, correlation = FALSE)
@@ -2624,6 +2702,10 @@ random_walk_random_networks <- function(network) {
   )
 }
 
+results_random_sep20 <- random_walk_random_networks(random_net_sep20_full)
+results_random_sep20_dem <- results_random_sep20[1]$democrat
+results_random_sep20_rep <- results_random_sep20[2]$republican
+
 results_random_oct20 <- random_walk_random_networks(random_net_oct20_full)
 results_random_oct20_dem <- results_random_oct20[1]$democrat
 results_random_oct20_rep <- results_random_oct20[2]$republican
@@ -2656,6 +2738,8 @@ calculate_exposure <- function(results) {
   return(exposure)
 }
 
+exposure_dem_sep20 <- calculate_exposure(results_dem_sep)
+exposure_rep_sep20 <- calculate_exposure(results_rep_sep)
 exposure_dem_oct20 <- calculate_exposure(results_dem_oct)
 exposure_rep_oct20 <- calculate_exposure(results_rep_oct)
 exposure_dem_nov20 <- calculate_exposure(results_dem_nov)
@@ -2669,26 +2753,40 @@ exposure_rep_feb21 <- calculate_exposure(results_rep_feb)
 
 # plot the results
 exposure_data <- data.frame(
-  month = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
-  democrat = c(exposure_dem_oct20, exposure_dem_nov20, exposure_dem_dec20, exposure_dem_jan21, exposure_dem_feb21),
-  republican = c(exposure_rep_oct20, exposure_rep_nov20, exposure_rep_dec20, exposure_rep_jan21, exposure_rep_feb21)
+  month = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
+  Democrat = c(exposure_dem_sep20, exposure_dem_oct20, exposure_dem_nov20, exposure_dem_dec20, exposure_dem_jan21, exposure_dem_feb21),
+  Republican = c(exposure_rep_sep20, exposure_rep_oct20, exposure_rep_nov20, exposure_rep_dec20, exposure_rep_jan21, exposure_rep_feb21)
 )
 
 # factorise month 
-exposure_data$month <- factor(exposure_data$month, levels = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
+exposure_data$month <- factor(exposure_data$month, levels = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
 
-exposure_data_long <- pivot_longer(exposure_data, cols = c(democrat, republican), names_to = "variable", values_to = "value")
+exposure_data_long <- pivot_longer(exposure_data, cols = c(Democrat, Republican), names_to = "variable", values_to = "value")
 
-ggplot(exposure_data_long, aes(x = month, y = value, fill = variable)) +
+custom_colors <- c("Democrat" = "dodgerblue", "Republican" = "red")
+
+barplot <- ggplot(exposure_data_long, aes(x = month, y = value, fill = variable)) +
   geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Exposure to Diverse Information by Party",
-       x = "Month",
-       y = "Exposure to Diverse Information",
-       fill = "Party") +
-  theme_minimal()
+  labs(
+    title = "Figure 4. Exposure to Diverse Information by Party",
+    x = "Month",
+    y = "Exposure to Diverse Information",
+    fill = "Party"
+  ) +
+  scale_fill_manual(values = custom_colors) +
+  theme_minimal() +
+  theme(
+    text = element_text(family = "Times New Roman"),  # Set all text to Times New Roman
+    plot.title = element_text(hjust = 0.5, size = 18),  # Center the plot title and set size
+    axis.title = element_text(size = 15),  # Set size for axis titles
+    axis.text = element_text(size = 10),  # Set size for axis text
+    legend.text = element_text(size = 10, color = "black"),  # Set size and color for legend text
+    legend.title = element_text(size = 15, color = "black")  # Set size and color for legend title
+  )
 ```
 
 ```{r}
+# Define the function to calculate exposure percentage
 calculate_exposure_percentage <- function(results) {
   total_walks <- 5000
   shift_steps <- c(results$n_of_shift_steps_1, results$n_of_shift_steps_2, results$n_of_shift_steps_3, results$n_of_shift_steps_4, results$n_of_shift_steps_5)
@@ -2698,6 +2796,12 @@ calculate_exposure_percentage <- function(results) {
   
   return(exposure_percentage)
 }
+
+# Define the exposure percentages for each month and party
+exposure_percentages_sep <- list(
+  democrat = calculate_exposure_percentage(results_dem_sep),
+  republican = calculate_exposure_percentage(results_rep_sep)
+)
 
 exposure_percentages_oct <- list(
   democrat = calculate_exposure_percentage(results_dem_oct),
@@ -2724,49 +2828,61 @@ exposure_percentages_feb <- list(
   republican = calculate_exposure_percentage(results_rep_feb)
 )
 
-exposure_df <- bind_rows(
-  data.frame(month = "October 2020", party = "Democrat", exposure = exposure_percentages_oct$democrat),
-  data.frame(month = "October 2020", party = "Republican", exposure = exposure_percentages_oct$republican),
-  data.frame(month = "November 2020", party = "Democrat", exposure = exposure_percentages_nov$democrat),
-  data.frame(month = "November 2020", party = "Republican", exposure = exposure_percentages_nov$republican),
-  data.frame(month = "December 2020", party = "Democrat", exposure = exposure_percentages_dec$democrat),
-  data.frame(month = "December 2020", party = "Republican", exposure = exposure_percentages_dec$republican),
-  data.frame(month = "January 2021", party = "Democrat", exposure = exposure_percentages_jan$democrat),
-  data.frame(month = "January 2021", party = "Republican", exposure = exposure_percentages_jan$republican),
-  data.frame(month = "February 2021", party = "Democrat", exposure = exposure_percentages_feb$democrat),
-  data.frame(month = "February 2021", party = "Republican", exposure = exposure_percentages_feb$republican)
-)
-
-# factorise month
-exposure_df$month <- factor(exposure_df$month, levels = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
-
-
-add_steps <- function(df) {
-  steps <- rep(1:5, each = length(df$exposure) / 5)
-  df$steps <- steps
-  return(df)
+# Function to calculate the average exposure percentage for each step
+average_exposure <- function(dem_exp, rep_exp) {
+  return((dem_exp + rep_exp) / 2)
 }
 
-# Apply the function to add steps
-exposure_df <- exposure_df %>%
-  group_by(month, party) %>%
-  do(add_steps(.))
+# Create the final combined data frame with averaged exposure percentages
+combine_and_average_steps <- function(month, dem_exp, rep_exp) {
+  avg_exposure <- average_exposure(dem_exp, rep_exp)
+  data.frame(
+    month = rep(month, 5), 
+    steps = 1:5, 
+    exposure = avg_exposure
+  )
+}
 
-# Plot the data using ggplot2
-ggplot(exposure_df, aes(x = steps, y = exposure, color = month, linetype = party, group = interaction(month, party))) +
+# Combine and average the exposure percentages for all months
+exposure_df <- bind_rows(
+  combine_and_average_steps("September 2020", exposure_percentages_sep$democrat, exposure_percentages_sep$republican),
+  combine_and_average_steps("October 2020", exposure_percentages_oct$democrat, exposure_percentages_oct$republican),
+  combine_and_average_steps("November 2020", exposure_percentages_nov$democrat, exposure_percentages_nov$republican),
+  combine_and_average_steps("December 2020", exposure_percentages_dec$democrat, exposure_percentages_dec$republican),
+  combine_and_average_steps("January 2021", exposure_percentages_jan$democrat, exposure_percentages_jan$republican),
+  combine_and_average_steps("February 2021", exposure_percentages_feb$democrat, exposure_percentages_feb$republican)
+)
+
+# Factorise month
+exposure_df$month <- factor(exposure_df$month, levels = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
+
+
+ggplot(exposure_df, aes(x = steps, y = exposure, color = month, group = month)) +
   geom_line() +
-  geom_point() +
+  geom_point(size = 1) +  # Adjust the size of the points
   labs(
-    title = "Exposure to Diverse Information Over Steps",
+    title = "Figure 5. Exposure to Diverse Information By Number of Steps",
     x = "Steps",
-    y = "Exposure to Other Partition (%)"
+    y = "% of Walks Exposed to Other Partition",
+    color = "Month"
   ) +
   theme_minimal() +
-  theme(legend.title = element_blank())
+  theme(
+    text = element_text(family = "Times New Roman"),
+    plot.title = element_text(hjust = 0.5, size = 18), 
+    axis.title = element_text(size = 15),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 15)
+  )
 ```
+
+
 
 ```{r}
 # calculate exposure for results of random networks 
+exposure_random_sep20 <- calculate_exposure(results_random_sep20_dem)
+exposure_random_sep20_rep <- calculate_exposure(results_random_sep20_rep)
 exposure_random_oct20 <- calculate_exposure(results_random_oct20_dem)
 exposure_random_oct20_rep <- calculate_exposure(results_random_oct20_rep)
 exposure_random_nov20 <- calculate_exposure(results_random_nov20_dem)
@@ -2780,14 +2896,14 @@ exposure_random_feb21_rep <- calculate_exposure(results_random_feb21_rep)
 
 # plot the results
 exposure_random_data <- data.frame(
-  month = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
-  democrat = c(exposure_random_oct20, exposure_random_nov20, exposure_random_dec20, exposure_random_jan21, exposure_random_feb21),
-  republican = c(exposure_random_oct20_rep, exposure_random_nov20_rep, exposure_random_dec20_rep, exposure_random_jan21_rep, exposure_random_feb21_rep)
+  month = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
+  democrat = c(exposure_random_sep20, exposure_random_oct20, exposure_random_nov20, exposure_random_dec20, exposure_random_jan21, exposure_random_feb21),
+  republican = c(exposure_random_sep20_rep, exposure_random_oct20_rep, exposure_random_nov20_rep, exposure_random_dec20_rep, exposure_random_jan21_rep, exposure_random_feb21_rep)
 )
 
 
 # factorise month
-exposure_random_data$month <- factor(exposure_random_data$month, levels = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
+exposure_random_data$month <- factor(exposure_random_data$month, levels = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
 
 exposure_random_data_long <- pivot_longer(exposure_random_data, cols = c(democrat, republican), names_to = "variable", values_to = "value")
 
@@ -2799,9 +2915,103 @@ ggplot(exposure_random_data_long, aes(x = month, y = value, fill = variable)) +
        fill = "Party") +
   theme_minimal()
 ```
+```{r}
+# Define the function to calculate exposure percentage for the results of random networks
+calculate_exposure <- function(results) {
+  total_walks <- 5000
+  shift_steps <- c(results$n_of_shift_steps_1, results$n_of_shift_steps_2, results$n_of_shift_steps_3, results$n_of_shift_steps_4, results$n_of_shift_steps_5)
+  
+  cumulative_shifts <- cumsum(shift_steps)
+  exposure_percentage <- (cumulative_shifts / total_walks) * 100
+  
+  return(exposure_percentage)
+}
+
+# Calculate exposure percentages for random networks
+exposure_random_sep20 <- calculate_exposure(results_random_sep20_dem)
+exposure_random_sep20_rep <- calculate_exposure(results_random_sep20_rep)
+exposure_random_oct20 <- calculate_exposure(results_random_oct20_dem)
+exposure_random_oct20_rep <- calculate_exposure(results_random_oct20_rep)
+exposure_random_nov20 <- calculate_exposure(results_random_nov20_dem)
+exposure_random_nov20_rep <- calculate_exposure(results_random_nov20_rep)
+exposure_random_dec20 <- calculate_exposure(results_random_dec20_dem)
+exposure_random_dec20_rep <- calculate_exposure(results_random_dec20_rep)
+exposure_random_jan21 <- calculate_exposure(results_random_jan21_dem)
+exposure_random_jan21_rep <- calculate_exposure(results_random_jan21_rep)
+exposure_random_feb21 <- calculate_exposure(results_random_feb21_dem)
+exposure_random_feb21_rep <- calculate_exposure(results_random_feb21_rep)
+
+# Create the data frame
+exposure_random_data <- data.frame(
+  month = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
+  Democrat = c(exposure_random_sep20, exposure_random_oct20, exposure_random_nov20, exposure_random_dec20, exposure_random_jan21, exposure_random_feb21),
+  Republican = c(exposure_random_sep20_rep, exposure_random_oct20_rep, exposure_random_nov20_rep, exposure_random_dec20_rep, exposure_random_jan21_rep, exposure_random_feb21_rep)
+)
+
+# Factorise month
+exposure_random_data$month <- factor(exposure_random_data$month, levels = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
+
+# Pivot the data to long format
+exposure_random_data_long <- pivot_longer(exposure_random_data, cols = c(Democrat, Republican), names_to = "variable", values_to = "value")
+
+# Ensure that the variable column is a factor with correct levels
+exposure_random_data_long$variable <- factor(exposure_random_data_long$variable, levels = c("Democrat", "Republican"))
+
+# Define custom colors for the bars
+custom_colors <- c("Democrat" = "dodgerblue", "Republican" = "red")
+
+# Plot the data using ggplot2
+barplot_random <- ggplot(exposure_random_data_long, aes(x = month, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Figure 5. Exposure to Diverse Information by Party in Random Networks",
+    x = "Month",
+    y = "Exposure to Diverse Information",
+    fill = "Party"
+  ) +
+  scale_fill_manual(values = custom_colors) +
+  theme_minimal() +
+  theme(
+    text = element_text(family = "Times New Roman"),  # Set all text to Times New Roman
+    plot.title = element_text(hjust = 0.5, size = 15),  # Center the plot title and set size
+    axis.title = element_text(size = 12),  # Set size for axis titles
+    axis.text = element_text(size = 8),  # Set size for axis text
+    legend.text = element_text(size = 8, color = "black"),  # Set size and color for legend text
+    legend.title = element_text(size = 12, color = "black")  # Set size and color for legend title
+  )
+
+```
 
 ```{r}
-# calculate exposure percentage for results of random networks
+
+install.packages("patchwork")
+library(patchwork)
+
+combined_plot <- (barplot + barplot_random) +
+  plot_layout(ncol = 2, widths = c(0.5, 0.5))  # Adjust widths as needed
+
+print(combined_plot)
+```
+
+
+```{r}
+# Calculate exposure percentage for results of random networks
+calculate_exposure_percentage <- function(results) {
+  total_walks <- 5000
+  shift_steps <- c(results$n_of_shift_steps_1, results$n_of_shift_steps_2, results$n_of_shift_steps_3, results$n_of_shift_steps_4, results$n_of_shift_steps_5)
+  
+  cumulative_shifts <- cumsum(shift_steps)
+  exposure_percentage <- (cumulative_shifts / total_walks) * 100
+  
+  return(exposure_percentage)
+}
+
+# Define the exposure percentages for each month and party
+exposure_percentages_random_sep <- list(
+  democrat = calculate_exposure_percentage(results_random_sep20_dem),
+  republican = calculate_exposure_percentage(results_random_sep20_rep)
+)
+
 exposure_percentages_random_oct <- list(
   democrat = calculate_exposure_percentage(results_random_oct20_dem),
   republican = calculate_exposure_percentage(results_random_oct20_rep)
@@ -2827,36 +3037,269 @@ exposure_percentages_random_feb <- list(
   republican = calculate_exposure_percentage(results_random_feb21_rep)
 )
 
+# Function to calculate the average exposure percentage for each step
+average_exposure <- function(dem_exp, rep_exp) {
+  return((dem_exp + rep_exp) / 2)
+}
+
+# Create the final combined data frame with averaged exposure percentages
+combine_and_average_steps <- function(month, dem_exp, rep_exp) {
+  avg_exposure <- average_exposure(dem_exp, rep_exp)
+  data.frame(
+    month = rep(month, 5), 
+    steps = 1:5, 
+    exposure = avg_exposure
+  )
+}
+
+# Combine and average the exposure percentages for all months
 exposure_random_df <- bind_rows(
-  data.frame(month = "October 2020", party = "Democrat", exposure = exposure_percentages_random_oct$democrat),
-  data.frame(month = "November 2020", party = "Democrat", exposure = exposure_percentages_random_nov$democrat),
-  data.frame(month = "November 2020", party = "Republican", exposure = exposure_percentages_random_nov$republican),
-  data.frame(month = "December 2020", party = "Democrat", exposure = exposure_percentages_random_dec$democrat),
-  data.frame(month = "December 2020", party = "Republican", exposure = exposure_percentages_random_dec$republican),
-  data.frame(month = "January 2021", party = "Democrat", exposure = exposure_percentages_random_jan$democrat),
-  data.frame(month = "January 2021", party = "Republican", exposure = exposure_percentages_random_jan$republican),
-  data.frame(month = "February 2021", party = "Democrat", exposure = exposure_percentages_random_feb$democrat),
-  data.frame(month = "February 2021", party = "Republican", exposure = exposure_percentages_random_feb$republican)
+  combine_and_average_steps("September 2020", exposure_percentages_random_sep$democrat, exposure_percentages_random_sep$republican),
+  combine_and_average_steps("October 2020", exposure_percentages_random_oct$democrat, exposure_percentages_random_oct$republican),
+  combine_and_average_steps("November 2020", exposure_percentages_random_nov$democrat, exposure_percentages_random_nov$republican),
+  combine_and_average_steps("December 2020", exposure_percentages_random_dec$democrat, exposure_percentages_random_dec$republican),
+  combine_and_average_steps("January 2021", exposure_percentages_random_jan$democrat, exposure_percentages_random_jan$republican),
+  combine_and_average_steps("February 2021", exposure_percentages_random_feb$democrat, exposure_percentages_random_feb$republican)
 )
 
-# factorise month
-exposure_random_df$month <- factor(exposure_random_df$month, levels = c("October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
+# Factorise month
+exposure_random_df$month <- factor(exposure_random_df$month, levels = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
 
-# Apply the function to add steps
-exposure_random_df <- exposure_random_df %>%
-  group_by(month, party) %>%
-  do(add_steps(.))
-
-# Plot the data using ggplot2
-ggplot(exposure_random_df, aes(x = steps, y = exposure, color = party, linetype = month, group = interaction(month, party))) +
+ggplot(exposure_random_df, aes(x = steps, y = exposure, color = month, group = month)) +
   geom_line() +
   geom_point() +
   labs(
-    title = "Exposure to Diverse Information Over Steps in Random Networks",
+    title = "Figure 7. Exposure to Diverse Information By Number of Steps in Random Networks",
     x = "Steps",
-    y = "Exposure to Other Partition (%)"
+    y = "% of Walks Exposed to Other Partition",
+    color = "Month"
   ) +
   theme_minimal() +
-  theme(legend.title = element_blank())
+  theme(
+    text = element_text(family = "Times New Roman"),
+    plot.title = element_text(hjust = 0.5, size = 18), 
+    axis.title = element_text(size = 15),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 15)
+  )
+```
+
+```{r create_robustness_networks}
+create_net_robust <- function(full_network) {
+  # Identify Republican nodes
+  republican_nodes <- V(full_network)[party == "Republican"]
+  
+  # Calculate weighted degrees for Republican nodes
+  republican_degrees <- strength(full_network, vids = republican_nodes, weights = E(full_network)$weight)
+  
+  # Sort Republican nodes by weighted degree in ascending order
+  sorted_republican_nodes <- republican_nodes[order(republican_degrees)]
+  
+  # Identify the 200 Republican nodes with the smallest weighted degree
+  nodes_to_remove <- head(sorted_republican_nodes, 200)
+  
+  # Remove these nodes from the network
+  robust_network <- delete_vertices(full_network, nodes_to_remove)
+  
+  return(robust_network)
+}
+
+robust_net_nov19 <- create_net_robust(net_clicknov19_filtered)
+robust_net_dec19 <- create_net_robust(net_clickdec19_filtered)
+robust_net_jan20 <- create_net_robust(net_clickjan20_filtered)
+robust_net_feb20 <- create_net_robust(net_clickfeb20_filtered)
+robust_net_mar20 <- create_net_robust(net_clickmar20_filtered)
+robust_net_apr20 <- create_net_robust(net_clickapr20_filtered)
+robust_net_may20 <- create_net_robust(net_clickmay20_filtered)
+robust_net_jun20 <- create_net_robust(net_clickjun20_filtered)
+robust_net_jul20 <- create_net_robust(net_clickjul20_filtered)
+robust_net_aug20 <- create_net_robust(net_clickaug20_filtered)
+robust_net_sep20 <- create_net_robust(net_clicksep20_filtered)
+robust_net_oct20 <- create_net_robust(net_clickoct20_filtered)
+robust_net_nov20 <- create_net_robust(net_clicknov20_filtered)
+robust_net_dec20 <- create_net_robust(net_clickdec20_filtered)
+robust_net_jan21 <- create_net_robust(net_clickjan21_filtered)
+robust_net_feb21 <- create_net_robust(net_clickfeb21_filtered)
+robust_net_mar21 <- create_net_robust(net_clickmar21_filtered)
+robust_net_apr21 <- create_net_robust(net_clickapr21_filtered)
+robust_net_may21 <- create_net_robust(net_clickmay21_filtered)
+robust_net_jun21 <- create_net_robust(net_clickjun21_filtered)
+robust_net_jul21 <- create_net_robust(net_clickjul21_filtered)
+robust_net_aug21 <- create_net_robust(net_clickaug21_filtered)
+robust_net_sep21 <- create_net_robust(net_clicksep21_filtered)
+robust_net_oct21 <- create_net_robust(net_clickoct21_filtered)
+robust_net_nov21 <- create_net_robust(net_clicknov21_filtered)
+```
+
+```{r edgecount_robustness}
+mixing_matrix_robust_nov19 <- mixingm(robust_net_nov19, "party")
+mixing_matrix_robust_dec19 <- mixingm(robust_net_dec19, "party")
+mixing_matrix_robust_jan20 <- mixingm(robust_net_jan20, "party")
+mixing_matrix_robust_feb20 <- mixingm(robust_net_feb20, "party")
+mixing_matrix_robust_mar20 <- mixingm(robust_net_mar20, "party")
+mixing_matrix_robust_apr20 <- mixingm(robust_net_apr20, "party")
+mixing_matrix_robust_may20 <- mixingm(robust_net_may20, "party")
+mixing_matrix_robust_jun20 <- mixingm(robust_net_jun20, "party")
+mixing_matrix_robust_jul20 <- mixingm(robust_net_jul20, "party")
+mixing_matrix_robust_aug20 <- mixingm(robust_net_aug20, "party")
+mixing_matrix_robust_sep20 <- mixingm(robust_net_sep20, "party")
+mixing_matrix_robust_oct20 <- mixingm(robust_net_oct20, "party")
+mixing_matrix_robust_nov20 <- mixingm(robust_net_nov20, "party")
+mixing_matrix_robust_dec20 <- mixingm(robust_net_dec20, "party")
+mixing_matrix_robust_jan21 <- mixingm(robust_net_jan21, "party")
+mixing_matrix_robust_feb21 <- mixingm(robust_net_feb21, "party")
+mixing_matrix_robust_mar21 <- mixingm(robust_net_mar21, "party")
+mixing_matrix_robust_apr21 <- mixingm(robust_net_apr21, "party")
+mixing_matrix_robust_may21 <- mixingm(robust_net_may21, "party")
+mixing_matrix_robust_jun21 <- mixingm(robust_net_jun21, "party")
+mixing_matrix_robust_jul21 <- mixingm(robust_net_jul21, "party")
+mixing_matrix_robust_aug21 <- mixingm(robust_net_aug21, "party")
+mixing_matrix_robust_sep21 <- mixingm(robust_net_sep21, "party")
+mixing_matrix_robust_oct21 <- mixingm(robust_net_oct21, "party")
+mixing_matrix_robust_nov21 <- mixingm(robust_net_nov21, "party")
+
+# Create a list of mixing matrices
+robust_matrices_list <- list(
+  November_19 = mixing_matrix_robust_nov19, December_19 = mixing_matrix_robust_dec19,
+  January_20 = mixing_matrix_robust_jan20, February_20 = mixing_matrix_robust_feb20, March_20 = mixing_matrix_robust_mar20,
+  April_20 = mixing_matrix_robust_apr20, May_20 = mixing_matrix_robust_may20, June_20 = mixing_matrix_robust_jun20,
+  July_20 = mixing_matrix_robust_jul20, August_20 = mixing_matrix_robust_aug20, September_20 = mixing_matrix_robust_sep20,
+  October_20 = mixing_matrix_robust_oct20, November_20 = mixing_matrix_robust_nov20, December_20 = mixing_matrix_robust_dec20,
+  January_21 = mixing_matrix_robust_jan21, February_21 = mixing_matrix_robust_feb21, March_21 = mixing_matrix_robust_mar21,
+  April_21 = mixing_matrix_robust_apr21, May_21 = mixing_matrix_robust_may21, June_21 = mixing_matrix_robust_jun21,
+  July_21 = mixing_matrix_robust_jul21, August_21 = mixing_matrix_robust_aug21, September_21 = mixing_matrix_robust_sep21,
+  October_21 = mixing_matrix_robust_oct21, November_21 = mixing_matrix_robust_nov21
+)
+
+# Extract counts from the mixing matrices
+extract_counts <- function(matrix, month) {
+  data.frame(
+    Month = month,
+    "Democrat to Democrat" = matrix["Democrat", "Democrat"],
+    "Democrat to Republican" = matrix["Democrat", "Republican"],
+    "Republican to Democrat" = matrix["Republican", "Democrat"],
+    "Republican to Republican" = matrix["Republican", "Republican"]
+  )
+}
+
+# Apply the function to each matrix and combine the results into a dataframe
+results <- bind_rows(lapply(names(robust_matrices_list), function(month) {
+  extract_counts(robust_matrices_list[[month]], month)
+}))
+
+results$Month <- factor(results$Month, levels = c(
+  "November_19", "December_19", "January_20", "February_20", "March_20", "April_20", "May_20", "June_20",
+  "July_20", "August_20", "September_20", "October_20", "November_20", "December_20",
+  "January_21", "February_21", "March_21", "April_21", "May_21", "June_21", "July_21", "August_21",
+  "September_21", "October_21", "November_21"
+))
+
+results_long <- results %>%
+  gather(key = "Interaction", value = "Count", -Month)
+
+results_long$Interaction <- factor(results_long$Interaction, levels = c(
+  "Democrat.to.Democrat", "Democrat.to.Republican", "Republican.to.Democrat", "Republican.to.Republican"
+))
+
+y_breaks <- pretty(results_long$Count, n = 5)
+
+custom_labels <- c(
+  "November '19", "December '19", "January '20", "February '20", "March '20", "April '20", "May '20", "June '20",
+  "July '20", "August '20", "September '20", "October '20", "November '20", "December '20",
+  "January '21", "February '21", "March '21", "April '21", "May '21", "June '21", "July '21", "August '21",
+  "September '21", "October '21", "November '21"
+)
+
+custom_legend_labels <- c("Democrat to Democrat", "Democrat to Republican", "Republican to Democrat", "Republican to Republican")
+
+custom_colors <- c(
+  "Democrat.to.Democrat" = "dodgerblue", 
+  "Republican.to.Democrat" = "pink", 
+  "Democrat.to.Republican" = "purple", 
+  "Republican.to.Republican" = "red"
+)
+
+ggplot(results_long, aes(x = Month, y = Count, color = Interaction, group = Interaction)) +
+  geom_line() +
+  geom_point(size = 1) +
+  geom_vline(xintercept = 13, linetype = "dashed", color = "forestgreen", alpha = 0.5) +
+  geom_vline(xintercept = 15, linetype = "dashed", color = "forestgreen", alpha = 0.5) +
+  annotate("text", x = 13, y = 0.1, label = "Election", vjust = 0.5, color = "darkgreen", family = "Times New Roman", size = 4) +
+  annotate("text", x = 15, y = 0.1, label = "Insurgence", vjust = -2, color = "darkgreen", family = "Times New Roman", size = 4) +
+  labs(title = "Figure 1. Count of Edges included in Wikipedia hyperlink networks over time",
+       x = "Month",
+       y = "Edge Count", 
+       color = "Link Type") +
+  scale_x_discrete(labels = custom_labels) +
+  scale_y_continuous(breaks = y_breaks) +
+  scale_color_manual(values = custom_colors, labels = custom_legend_labels) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10, family = "Times New Roman"),
+    axis.text.y = element_text(size = 10, family = "Times New Roman"),
+    plot.title = element_text(size = 18, family = "Times New Roman", hjust = 0.5),
+    axis.title.x = element_text(size = 15, family = "Times New Roman"),
+    axis.title.y = element_text(size = 15, family = "Times New Roman"),
+    legend.text = element_text(size = 10, family = "Times New Roman"),
+    legend.title = element_text(size = 15, family = "Times New Roman")
+  )
+```
+
+```{r robustness_modularity}
+# Define a function to calculate modularity for a given network and party membership
+calculate_modularity <- function(network, party_levels = c("Democrat", "Republican")) {
+  membership <- V(network)$party
+  membership <- as.numeric(factor(membership, levels = party_levels))
+  mod <- modularity(network, membership, weights = E(network)$weight)
+  return(mod)
+}
+
+# Calculate modularity for each robust network version
+modularity_scores <- data.frame(
+  Month = c(
+    "November '19", "December '19", "January '20", "February '20", "March '20", "April '20", "May '20", "June '20",
+    "July '20", "August '20", "September '20", "October '20", "November '20", "December '20",
+    "January '21", "February '21", "March '21", "April '21", "May '21", "June '21", "July '21", "August '21",
+    "September '21", "October '21", "November '21"
+  ),
+  Modularity = c(
+    calculate_modularity(robust_net_nov19), calculate_modularity(robust_net_dec19), calculate_modularity(robust_net_jan20),
+    calculate_modularity(robust_net_feb20), calculate_modularity(robust_net_mar20), calculate_modularity(robust_net_apr20),
+    calculate_modularity(robust_net_may20), calculate_modularity(robust_net_jun20), calculate_modularity(robust_net_jul20),
+    calculate_modularity(robust_net_aug20), calculate_modularity(robust_net_sep20), calculate_modularity(robust_net_oct20),
+    calculate_modularity(robust_net_nov20), calculate_modularity(robust_net_dec20), calculate_modularity(robust_net_jan21),
+    calculate_modularity(robust_net_feb21), calculate_modularity(robust_net_mar21), calculate_modularity(robust_net_apr21),
+    calculate_modularity(robust_net_may21), calculate_modularity(robust_net_jun21), calculate_modularity(robust_net_jul21),
+    calculate_modularity(robust_net_aug21), calculate_modularity(robust_net_sep21), calculate_modularity(robust_net_oct21),
+    calculate_modularity(robust_net_nov21)
+  )
+)
+
+modularity_scores$Month <- factor(modularity_scores$Month, levels = modularity_scores$Month)
+average_modularity <- mean(modularity_scores$Modularity, na.rm = TRUE)
+
+# Plot the modularity scores
+ggplot(modularity_scores, aes(x = Month, y = Modularity)) +
+  geom_point(size = 0.8, color = "purple") +  # Add points
+  geom_line(aes(group = 1), color = "purple") +  # Connect points with lines
+  geom_hline(yintercept = average_modularity, linetype = "solid", color = "darkorange2", alpha = 0.6) + 
+  geom_vline(xintercept = 13, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
+  geom_vline(xintercept = 15, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
+  annotate("text", x = 13, y = 0.1, label = "Election", vjust = 0, color = "darkgreen", family = "Times New Roman", size = 5) +
+  annotate("text", x = 15, y = 0.1, label = "Insurgence", vjust = -2, color = "darkgreen", family = "Times New Roman", size = 5) +
+  annotate("text", x = Inf, y = average_modularity, label = "Average Modularity", vjust = 1.5, hjust = 1, color = "darkorange2", family = "Times New Roman", size = 4) +
+  labs(x = "Month", y = "Modularity", title = "Figure 2. Modularity Scores from November 2019 to November 2021") +
+  theme_minimal() +  # Minimal theme
+  theme(
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, family = "Times New Roman"),
+    axis.text.y = element_text(size = 10, family = "Times New Roman"),
+    axis.title.x = element_text(size = 15, family = "Times New Roman"),
+    axis.title.y = element_text(size = 15, family = "Times New Roman"),
+    plot.title = element_text(size = 18, family = "Times New Roman", hjust = 0.5),
+    legend.text = element_text(family = "Times New Roman"),
+    legend.title = element_text(family = "Times New Roman")
+  ) +
+  scale_y_continuous(limits = c(0, 0.4))
 ```
 
