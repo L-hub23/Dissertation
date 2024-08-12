@@ -1,4 +1,4 @@
-# Dissertation
+# My MSc Capstone Project
 This is the repository for my Capstone Project. 
 
 The file dissertation_code.Rmd contains the code used for the analysis.
