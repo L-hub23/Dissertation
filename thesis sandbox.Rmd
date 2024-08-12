@@ -1,7 +1,7 @@
 ---
-title: "thesis sandbox"
+title: "Capstone Project - Wikipedia Network Analysis"
 output: html_document
-date: "2024-03-01"
+date: "2024-08-14"
 ---
 
 ```{r setup, include=FALSE}
@@ -19,54 +19,11 @@ library("httr")
 library(tidyverse)
 library(knitr)
 library(kableExtra)
+library(netseg)
 set.seed(42)
 ```
 
-```{r save_image}
-# save RData image
-save.image("data/click_networks.RData")
-load("data/click_networks.RData")
-```
-
 ```{r get_pages}
-# Get pages in initial categories
-repub_pages <- pages_in_category("en", "wikipedia", categories = "Republican Party (United States)", type = "page")
-
-repub_pages2 <- pages_in_category("en", "wikipedia", categories = "Republicans (United States)", type = "page")
-
-demo_pages <- pages_in_category("en", "wikipedia", categories = "Democratic Party (United States)", type = "page")
-
-demo_pages2 <- pages_in_category("en", "wikipedia", categories = "Democrats (United States)", type = "page")
-
-
-# Get the number of category members
-num_members <- length(demo_pages$query$categorymembers)
-num_members2 <- length(demo_pages2$query$categorymembers)
-
-
-# Iterate through each category member and extract the title from the JSON response
-dem_titles <- c()
-for (i in 1:num_members) {
-  dem_titles[i] <- demo_pages$query$categorymembers[[i]]$title
-}
-
-for (i in 1:num_members2) {
-  dem_titles[50 + i] <- demo_pages2$query$categorymembers[[i]]$title
-}
-
-# the same for the republican pages
-num_members_r <- length(repub_pages$query$categorymembers)
-num_members_r2 <- length(repub_pages2$query$categorymembers)
-repub_titles <- c()
-
-for (i in 1:num_members_r) {
-  repub_titles[i] <- repub_pages$query$categorymembers[[i]]$title
-}
-
-for (i in 1:num_members_r2) {
-  repub_titles[50 + i] <- repub_pages2$query$categorymembers[[i]]$title
-}
-
 # prepare function which extracts subcategories
 extract_categories <- function(category_string, depth) {
   if (depth > 30) return(NA) # up to 30 levels of subcategories
@@ -133,7 +90,7 @@ repub_subcats <- repub_subcats[!is.na(repub_subcats)]
 
 write.table(repub_subcats, "repub_subcats.txt", row.names = FALSE, col.names = FALSE)
 
-# read the subcategories from the txt files
+# read the cleaned subcategories from the txt files
 demo_subcats_delete <- read.table("demo_subcats_delete.txt", header = FALSE, colClasses = "character")
 repub_subcats_delete <- read.table("repub_subcats_delete.txt", header = FALSE, colClasses = "character")
 
@@ -173,6 +130,9 @@ democrat_pages <- extract_pages(demo_subcats)
 
 democrat_pages <- unique(democrat_pages) # remove duplicates
 
+# get pages from initial categories
+dem_titles <- extract_pages(c("Democratic Party (United States)", "Democrats (United States)"))
+
 missing_pages <- setdiff(dem_titles, democrat_pages) # get pages from original categories
 
 democrat_pages <- c(democrat_pages, missing_pages) # add missing pages
@@ -180,6 +140,7 @@ democrat_pages <- c(democrat_pages, missing_pages) # add missing pages
 # repeat for republican pages
 republican_pages <- extract_pages(repub_subcats)
 republican_pages <- unique(republican_pages)
+repub_titles <- extract_pages(c("Republican Party (United States)", "Republicans (United States)"))
 missing_pages <- setdiff(repub_titles, republican_pages)
 republican_pages <- c(republican_pages, missing_pages)
 
@@ -378,13 +339,6 @@ net_clickaug21 <- clean_graph(net_clickaug21)
 net_clicksep21 <- clean_graph(net_clicksep21)
 net_clickoct21 <- clean_graph(net_clickoct21)
 net_clicknov21 <- clean_graph(net_clicknov21)
-
-# count number of republican and democrat nodes
-sum(V(net_clicksep20)$party == "Republican")
-sum(V(net_clicksep20)$party == "Democrat")
-
-# check unique values for party
-unique(V(net_clicksep20)$party)
 ```
 
 ```{r extract_neighbors}
@@ -479,11 +433,6 @@ net_clicknov21 <- update_graph_with_affiliations(net_clicknov21)
 
 ```{r descriptive_analysis}
 analyze_graph <- function(graph) {
-  # Calculate average weighted degree
-  mean_degree_out <- mean(strength(graph, mode = "all", weights = E(graph)$weight))
-  
-  # Calculate reciprocity
-  graph_reciprocity <- reciprocity(graph)
   
   # Count the number of vertices with each party affiliation
   num_republican <- sum(V(graph)$party == "Republican")
@@ -495,8 +444,6 @@ analyze_graph <- function(graph) {
   
   # Return the results as a list
   return(list(
-    mean_degree_out = mean_degree_out,
-    reciprocity = graph_reciprocity,
     num_republican = num_republican,
     num_democrat = num_democrat,
     num_other = num_other
@@ -603,98 +550,15 @@ total_rep_dem_pages_table <- kable(total_rep_dem_pages,
 total_rep_dem_pages_table
 ```
 
+```{r n_of_other_pages}
+# get number of "Other" pages for September, October, November, December, January and February
 
-```{r gephi_data}
-net_clicknov20_test <- net_clicknov20
-
-net_clicknov20_test <- delete_vertices(net_clicknov20, which(V(net_clicknov20)$party == "Other"))
-
-net_clicknov20_test <- delete_vertices(net_clicknov20_test, which(V(net_clicknov20_test)$party == "Politics"))
-
-# export edgelist with weights as csv
-# Extract the edgelist
-edgelist <- as_tibble(get.edgelist(net_clicknov20_test))
-
-# Extract the edge weights
-weights <- E(net_clicknov20_test)$weight
-
-# Combine edgelist and weights into a data frame
-edgelist_with_weights <- edgelist %>%
-  mutate(weight = weights)
-
-# rename columns
-colnames(edgelist_with_weights) <- c("Source", "Target", "Weight")
-
-# Write to CSV file
-write.csv(edgelist_with_weights, "data/edgelist.csv", row.names = FALSE)
-
-# export node attributes as csv
-# Extract all vertex attributes
-node_attributes <- as.data.frame(get.vertex.attribute(net_clicknov20_test))
-
-# Combine node IDs and attributes into a data frame
-node_data <- as_tibble(cbind(node_attributes))
-
-# rename columns
-colnames(node_data) <- c("Id", "Label")
-
-# for every Republican label, add as hex values Color attribute red, for every Democrat label, add Color attribute blue, for every Politics label, add Color attribute green, for every Other label, add Color attribute grey
-node_data$color <- ifelse(node_data$Label == "Republican", "#FF0000", ifelse(node_data$Label == "Democrat", "#0000FF", "#808080"))
-
-# Write to CSV file
-write.csv(node_data, "data/node_attributes.csv", row.names = FALSE)
-```
-
-```{r gephi_data2}
-net_clicknov20_boundary <- net_clicknov20_test
-
-# remove all nodes that do not have an edge to the opposing party
-nodes_with_opposing_edges <- c()
-for (v in V(net_clicknov20_boundary)) {
-  party_v <- V(net_clicknov20_boundary)[v]$party
-  neighbors <- neighbors(net_clicknov20_boundary, v)
-  for (n in neighbors) {
-    if (V(net_clicknov20_boundary)[n]$party != party_v) {
-      nodes_with_opposing_edges <- c(nodes_with_opposing_edges, v)
-      break
-    }
-  }
-}
-
-# Step 2: Create the filtered network including only the identified nodes
-nodes_with_opposing_edges <- unique(nodes_with_opposing_edges) # Remove duplicates
-filtered_g <- induced_subgraph(net_clicknov20_boundary, nodes_with_opposing_edges)
-
-edgelist <- as_tibble(get.edgelist(filtered_g))
-
-# Extract the edge weights
-weights <- E(filtered_g)$weight
-
-# Combine edgelist and weights into a data frame
-edgelist_with_weights <- edgelist %>%
-  mutate(weight = weights)
-
-# rename columns
-colnames(edgelist_with_weights) <- c("Source", "Target", "Weight")
-
-# Write to CSV file
-write.csv(edgelist_with_weights, "data/edgelist.csv", row.names = FALSE)
-
-# export node attributes as csv
-# Extract all vertex attributes
-node_attributes <- as.data.frame(get.vertex.attribute(filtered_g))
-
-# Combine node IDs and attributes into a data frame
-node_data <- as_tibble(cbind(node_attributes))
-
-# rename columns
-colnames(node_data) <- c("Id", "Label")
-
-# for every Republican label, add as hex values Color attribute red, for every Democrat label, add Color attribute blue, for every Politics label, add Color attribute green, for every Other label, add Color attribute grey
-node_data$color <- ifelse(node_data$Label == "Republican", "#FF0000", ifelse(node_data$Label == "Democrat", "#0000FF", "#808080"))
-
-# Write to CSV file
-write.csv(node_data, "data/node_attributes.csv", row.names = FALSE)
+(n_other_sep <- sum(V(net_clicksep20)$party == "Other"))
+(n_other_oct <- sum(V(net_clickoct20)$party == "Other"))
+(n_other_nov <- sum(V(net_clicknov20)$party == "Other"))
+(n_other_dec <- sum(V(net_clickdec20)$party == "Other"))
+(n_other_jan <- sum(V(net_clickjan21)$party == "Other"))
+(n_other_feb <- sum(V(net_clickfeb21)$party == "Other"))
 ```
 
 ```{r filter_networks}
@@ -855,11 +719,11 @@ custom_colors <- c(
 ggplot(results_long, aes(x = Month, y = Count, color = Interaction, group = Interaction)) +
   geom_line() +
   geom_point(size = 1) +
-  geom_vline(xintercept = 13, linetype = "dashed", color = "forestgreen", alpha = 0.5) +
-  geom_vline(xintercept = 15, linetype = "dashed", color = "forestgreen", alpha = 0.5) +
-  annotate("text", x = 13, y = 0.1, label = "Election", vjust = 0.5, color = "darkgreen", family = "Times New Roman", size = 4) +
-  annotate("text", x = 15, y = 0.1, label = "Insurgence", vjust = -2, color = "darkgreen", family = "Times New Roman", size = 4) +
-  labs(title = "Figure 1. Count of Edges included in Wikipedia hyperlink networks over time",
+  geom_vline(xintercept = 13, linetype = "dashed", color = "black", alpha = 0.4) +
+  geom_vline(xintercept = 15, linetype = "dashed", color = "black", alpha = 0.4) +
+  annotate("text", x = 13, y = 0.1, label = "Election", vjust = -1, color = "black", family = "Times New Roman", size = 5) +
+  annotate("text", x = 15, y = 0.1, label = "Riots", vjust = -3, color = "black", family = "Times New Roman", size = 5) +
+  labs(title = "Figure 1. Count of Edges included in Wikipedia Hyperlink Networks",
        x = "Month",
        y = "Edge Count", 
        color = "Link Type") +
@@ -868,13 +732,13 @@ ggplot(results_long, aes(x = Month, y = Count, color = Interaction, group = Inte
   scale_color_manual(values = custom_colors, labels = custom_legend_labels) +
   theme_minimal() +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1, size = 10, family = "Times New Roman"),
-    axis.text.y = element_text(size = 10, family = "Times New Roman"),
-    plot.title = element_text(size = 18, family = "Times New Roman", hjust = 0.5),
-    axis.title.x = element_text(size = 15, family = "Times New Roman"),
-    axis.title.y = element_text(size = 15, family = "Times New Roman"),
-    legend.text = element_text(size = 10, family = "Times New Roman"),
-    legend.title = element_text(size = 15, family = "Times New Roman")
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 13, family = "Times New Roman"),
+    axis.text.y = element_text(size = 13, family = "Times New Roman"),
+    plot.title = element_text(size = 20, family = "Times New Roman", hjust = 0.5),
+    axis.title.x = element_text(size = 16, family = "Times New Roman"),
+    axis.title.y = element_text(size = 16, family = "Times New Roman"),
+    legend.text = element_text(size = 13, family = "Times New Roman"),
+    legend.title = element_text(size = 16, family = "Times New Roman")
   )
 ```
 
@@ -884,7 +748,7 @@ ggplot(results_long, aes(x = Month, y = Count, color = Interaction, group = Inte
 calculate_modularity <- function(network, party_levels = c("Democrat", "Republican")) {
   membership <- V(network)$party
   membership <- as.numeric(factor(membership, levels = party_levels))
-  mod <- modularity(network, membership, weights = E(network)$weight)
+  mod <- modularity(network, membership)
   return(mod)
 }
 
@@ -916,39 +780,42 @@ average_modularity <- mean(modularity_scores$Modularity, na.rm = TRUE)
 ggplot(modularity_scores, aes(x = Month, y = Modularity)) +
   geom_point(size = 0.8, color = "purple") +  # Add points
   geom_line(aes(group = 1), color = "purple") +  # Connect points with lines
-  geom_hline(yintercept = average_modularity, linetype = "solid", color = "darkorange2", alpha = 0.6) + 
-  geom_vline(xintercept = 13, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
-  geom_vline(xintercept = 15, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
-  annotate("text", x = 13, y = 0.1, label = "Election", vjust = 0, color = "darkgreen", family = "Times New Roman", size = 5) +
-  annotate("text", x = 15, y = 0.1, label = "Insurgence", vjust = -2, color = "darkgreen", family = "Times New Roman", size = 5) +
-  annotate("text", x = Inf, y = average_modularity, label = "Average Modularity", vjust = 1.5, hjust = 1, color = "darkorange2", family = "Times New Roman", size = 4) +
-  labs(x = "Month", y = "Modularity", title = "Figure 2. Modularity Scores from November 2019 to November 2021") +
+  geom_hline(yintercept = average_modularity, linetype = "solid", color = "darkorange3", alpha = 0.6) + 
+  geom_vline(xintercept = 13, linetype = "dashed", color = "black", alpha = 0.4) +
+  geom_vline(xintercept = 15, linetype = "dashed", color = "black", alpha = 0.4) +
+  annotate("text", x = 13, y = 0.1, label = "Election", vjust = -1, color = "black", family = "Times New Roman", size = 6) +
+  annotate("text", x = 15, y = 0.1, label = "Riots", vjust = -3, color = "black", family = "Times New Roman", size = 6) +
+  annotate("text", x = Inf, y = average_modularity, label = "Average Modularity", vjust = 1.5, hjust = 1, color = "darkorange3", family = "Times New Roman", size = 6) +
+  labs(x = "Month", y = "Modularity", title = "Figure 2. Modularity Scores") +
   theme_minimal() +  # Minimal theme
   theme(
-    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, family = "Times New Roman"),
-    axis.text.y = element_text(size = 10, family = "Times New Roman"),
-    axis.title.x = element_text(size = 15, family = "Times New Roman"),
-    axis.title.y = element_text(size = 15, family = "Times New Roman"),
-    plot.title = element_text(size = 18, family = "Times New Roman", hjust = 0.5),
+    axis.text.x = element_text(size = 13, angle = 45, hjust = 1, family = "Times New Roman"),
+    axis.text.y = element_text(size = 13, family = "Times New Roman"),
+    axis.title.x = element_text(size = 16, family = "Times New Roman"),
+    axis.title.y = element_text(size = 16, family = "Times New Roman"),
+    plot.title = element_text(size = 20, family = "Times New Roman", hjust = 0.5),
     legend.text = element_text(family = "Times New Roman"),
     legend.title = element_text(family = "Times New Roman")
   ) +
-  scale_y_continuous(limits = c(0, 0.4))
+  scale_y_continuous(limits = c(0, 0.5))
 ```
 
 ```{r boundary_polarisation}
 # Define the function to compute Spearman correlation of weighted degrees and cross-boundary connections
 
-calculate_spearman_correlation <- function(graph, community) {
+calculate_spearman_correlation <- function(graph) {
   party_labels <- V(graph)$party
   
+  community <- party_labels
+  
   # Calculate the degrees of each node in the graph
-  degrees <- strength(graph, weights = E(graph)$weight)
+  degrees <- degrees <- strength(
+    graph, mode = "out", weights = E(graph)$weight)
   
   # Define a nested function to compute cross-boundary connections
   cross_boundary_connections <- function(graph, community) {
     sapply(V(graph), function(node) {
-      neighbors <- neighbors(graph, node)
+      neighbors <- neighbors(graph, node, mode = "out")
       edge_ids <- E(graph)[.from(node) & .to(neighbors)]
       # Sum the instances where neighboring nodes are in different communities
       sum(E(graph)$weight[edge_ids][community[neighbors] != community[node]])
@@ -988,6 +855,7 @@ calculate_spearman_correlation <- function(graph, community) {
   
   # Calculate polarization for Democrats
   rho_democrat <- calculate_party_polarization("Democrat")
+
   
   # Return the Spearman correlation coefficients
   return(list(
@@ -997,78 +865,55 @@ calculate_spearman_correlation <- function(graph, community) {
   ))
 }
 
-# calculate correlation between nodes ranked by weighted degrees and normal degrees
-  cross_boundary_connections_weighted <- function(graph, community) {
-    sapply(V(graph), function(node) {
-      neighbors <- neighbors(graph, node)
-      edge_ids <- E(graph)[.from(node) & .to(neighbors)]
-      # Sum the instances where neighboring nodes are in different communities
-      sum(E(graph)$weight[edge_ids][community[neighbors] != community[node]])
-    })
-  }
-  
-  cross_boundary_connections <- function(graph, community) {
-    sapply(V(graph), function(node) {
-      neighbors <- neighbors(graph, node)
-      edge_ids <- E(graph)[.from(node) & .to(neighbors)]
-      # Sum the instances where neighboring nodes are in different communities
-      sum(community[neighbors] != community[node])
-    })
-  }
+bp_nov19 <- calculate_spearman_correlation(net_clicknov19_filtered)
 
-rank_cbw <- rank(-cross_boundary_connections_weighted(net_clicknov20_filtered, membership_nov20))
-rank_cb <- rank(-cross_boundary_connections(net_clicknov20_filtered, membership_nov20))
-rho <- cor(rank_d, rank_wd, method = "spearman")
+bp_dec19 <- calculate_spearman_correlation(net_clickdec19_filtered)
 
-bp_nov19 <- calculate_spearman_correlation(net_clicknov19_filtered, membership_nov19)
+bp_jan20 <- calculate_spearman_correlation(net_clickjan20_filtered)
 
-bp_dec19 <- calculate_spearman_correlation(net_clickdec19_filtered, membership_dec19)
+bp_feb20 <- calculate_spearman_correlation(net_clickfeb20_filtered)
 
-bp_jan20 <- calculate_spearman_correlation(net_clickjan20_filtered, membership_jan20)
+bp_mar20 <- calculate_spearman_correlation(net_clickmar20_filtered)
 
-bp_feb20 <- calculate_spearman_correlation(net_clickfeb20_filtered, membership_feb20)
+bp_apr20 <- calculate_spearman_correlation(net_clickapr20_filtered)
 
-bp_mar20 <- calculate_spearman_correlation(net_clickmar20_filtered, membership_mar20)
+bp_may20 <- calculate_spearman_correlation(net_clickmay20_filtered)
 
-bp_apr20 <- calculate_spearman_correlation(net_clickapr20_filtered, membership_apr20)
+bp_jun20 <- calculate_spearman_correlation(net_clickjun20_filtered)
 
-bp_may20 <- calculate_spearman_correlation(net_clickmay20_filtered, membership_may20)
+bp_jul20 <- calculate_spearman_correlation(net_clickjul20_filtered)
 
-bp_jun20 <- calculate_spearman_correlation(net_clickjun20_filtered, membership_jun20)
+bp_aug20 <- calculate_spearman_correlation(net_clickaug20_filtered)
 
-bp_jul20 <- calculate_spearman_correlation(net_clickjul20_filtered, membership_jul20)
+bp_sep20 <- calculate_spearman_correlation(net_clicksep20_filtered)
 
-bp_aug20 <- calculate_spearman_correlation(net_clickaug20_filtered, membership_aug20)
+bp_oct20 <- calculate_spearman_correlation(net_clickoct20_filtered)
 
-bp_sep20 <- calculate_spearman_correlation(net_clicksep20_filtered, membership_sep20)
+bp_nov20 <- calculate_spearman_correlation(net_clicknov20_filtered)
 
-bp_oct20 <- calculate_spearman_correlation(net_clickoct20_filtered, membership_oct20)
+bp_dec20 <- calculate_spearman_correlation(net_clickdec20_filtered)
 
-bp_nov20 <- calculate_spearman_correlation(net_clicknov20_filtered, membership_nov20)
+bp_jan21 <- calculate_spearman_correlation(net_clickjan21_filtered)
 
-bp_dec20 <- calculate_spearman_correlation(net_clickdec20_filtered, membership_dec20)
+bp_feb21 <- calculate_spearman_correlation(net_clickfeb21_filtered)
 
-bp_jan21 <- calculate_spearman_correlation(net_clickjan21_filtered, membership_jan21)
+bp_mar21 <- calculate_spearman_correlation(net_clickmar21_filtered)
 
-bp_feb21 <- calculate_spearman_correlation(net_clickfeb21_filtered, membership_feb21)
+bp_apr21 <- calculate_spearman_correlation(net_clickapr21_filtered)
 
-bp_mar21 <- calculate_spearman_correlation(net_clickmar21_filtered, membership_mar21)
+bp_may21 <- calculate_spearman_correlation(net_clickmay21_filtered)
 
-bp_apr21 <- calculate_spearman_correlation(net_clickapr21_filtered, membership_apr21)
+bp_jun21 <- calculate_spearman_correlation(net_clickjun21_filtered)
 
-bp_may21 <- calculate_spearman_correlation(net_clickmay21_filtered, membership_may21)
+bp_jul21 <- calculate_spearman_correlation(net_clickjul21_filtered)
 
-bp_jun21 <- calculate_spearman_correlation(net_clickjun21_filtered, membership_jun21)
+bp_aug21 <- calculate_spearman_correlation(net_clickaug21_filtered)
 
-bp_jul21 <- calculate_spearman_correlation(net_clickjul21_filtered, membership_jul21)
+bp_sep21 <- calculate_spearman_correlation(net_clicksep21_filtered)
 
-bp_aug21 <- calculate_spearman_correlation(net_clickaug21_filtered, membership_aug21)
+bp_oct21 <- calculate_spearman_correlation(net_clickoct21_filtered)
 
-bp_sep21 <- calculate_spearman_correlation(net_clicksep21_filtered, membership_sep21)
-
-bp_oct21 <- calculate_spearman_correlation(net_clickoct21_filtered, membership_oct21)
-
-bp_nov21 <- calculate_spearman_correlation(net_clicknov21_filtered, membership_nov21)
+bp_nov21 <- calculate_spearman_correlation(net_clicknov21_filtered)
 
 # generate random networks for each month
 random_net_nov19 <- sample_degseq(out.deg = degree(net_clicknov19_filtered, mode='out'), in.deg = degree(net_clicknov19_filtered, mode='in'), method = "simple")
@@ -1120,35 +965,7 @@ random_net_sep21 <- sample_degseq(out.deg = degree(net_clicksep21_filtered, mode
 random_net_oct21 <- sample_degseq(out.deg = degree(net_clickoct21_filtered, mode='out'), in.deg = degree(net_clickoct21_filtered, mode='in'), method = "simple")
 
 random_net_nov21 <- sample_degseq(out.deg = degree(net_clicknov21_filtered, mode='out'), in.deg = degree(net_clicknov21_filtered, mode='in'), method = "simple")
-```
 
-
-```{r}
-adjust_weights <- function(graph, target_strength, max_iter = 1000, tol = 1e-3) {
-  current_strength <- strength(graph, mode = "out", weights = E(graph)$weight)
-  iter <- 0
-  while (iter < max_iter && max(abs(current_strength - target_strength)) > tol) {
-    for (i in seq_along(V(graph))) {
-      neighbors <- neighbors(graph, i)
-      if (length(neighbors) == 0) next
-      current_sum <- sum(E(graph)[.from(i)]$weight)
-      target_sum <- target_strength[i]
-      if (current_sum == 0) next
-      adjustment_ratio <- target_sum / current_sum
-      E(graph)[.from(i)]$weight <- E(graph)[.from(i)]$weight * adjustment_ratio
-    }
-    current_strength <- strength(graph, mode = "out", weights = E(graph)$weight)
-    iter <- iter + 1
-  }
-  return(graph)
-}
-
-random_net_nov19 <- adjust_weights(random_net_nov19, target_strength = strength(net_clicknov19_filtered, mode = "out"))
-```
-
-
-
-```{r boundary_polarisation}
 assign_attributes_and_calculate_correlation <- function(random_net, original_net, correlation = TRUE) {
   
   random_net_name <- deparse(substitute(random_net))
@@ -1160,13 +977,11 @@ assign_attributes_and_calculate_correlation <- function(random_net, original_net
   weight_attr <- edge_attr(original_net, name = "weight")
   random_net <- set_edge_attr(random_net, name = "weight", value = weight_attr)
   
-  # Use the 'party' attribute as the community membership
-  random_membership <- V(random_net)$party
   
   assign(random_net_name, random_net, envir = .GlobalEnv)
   
   if (correlation == TRUE) {
-   output <- calculate_spearman_correlation(random_net, random_membership) 
+   output <- calculate_spearman_correlation(random_net) 
    return(output)
   }
 }
@@ -1223,30 +1038,31 @@ ggplot(boundary_polarisation_scores, aes(x = Month)) +
   geom_line(aes(y = Boundary_Polarisation, color = "Empirical Networks", group = 2)) +  # Color and label for empirical networks
   geom_point(aes(y = Random, color = "Random Networks"), size = 1) +  # Smaller points for random networks
   geom_point(aes(y = Boundary_Polarisation, color = "Empirical Networks"), size = 1) +  # Smaller points for empirical networks
-  geom_vline(xintercept = 13, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
-  geom_vline(xintercept = 15, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
-  annotate("text", x = 13, y = 0.1, label = "Election", vjust = -1, color = "darkgreen", family = "Times New Roman", size = 5) +
-  annotate("text", x = 15, y = 0.1, label = "Insurgence", vjust = -5, color = "darkgreen", family = "Times New Roman", size = 5) +
-  labs(x = "Month", y = "Spearman's Rho", title = "Figure 3. Boundary Polarisation from November 2019 to February 2021", color = "Network type") +
+  geom_vline(xintercept = 13, linetype = "dashed", color = "black", alpha = 0.4) +
+  geom_vline(xintercept = 15, linetype = "dashed", color = "black", alpha = 0.4) +
+  annotate("text", x = 13, y = 0.1, label = "Election", vjust = -1, color = "black", family = "Times New Roman", size = 5) +
+  annotate("text", x = 15, y = 0.1, label = "Riots", vjust = -4, color = "black", family = "Times New Roman", size = 5) +
+  labs(x = "Month", y = "Spearman's Rho", title = "Figure 3. Boundary Polarisation of Empirical and Random Networks", color = "Network Type") +
   scale_color_manual(values = custom_colors) +  # Set custom colors for lines and points
   theme_minimal() +
   theme(
-    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, family = "Times New Roman"),
-    axis.text.y = element_text(size = 10, family = "Times New Roman"),
-    axis.title.x = element_text(size = 15, family = "Times New Roman"),
-    axis.title.y = element_text(size = 15, family = "Times New Roman"),
-    plot.title = element_text(size = 18, hjust = 0.5, family = "Times New Roman"),
-    legend.title = element_text(size = 15, family = "Times New Roman"),
-    legend.text = element_text(size = 10, family = "Times New Roman")
+    axis.text.x = element_text(size = 13, angle = 45, hjust = 1, family = "Times New Roman"),
+    axis.text.y = element_text(size = 13, family = "Times New Roman"),
+    axis.title.x = element_text(size = 16, family = "Times New Roman"),
+    axis.title.y = element_text(size = 16, family = "Times New Roman"),
+    plot.title = element_text(size = 20, hjust = 0.5, family = "Times New Roman"),
+    legend.title = element_text(size = 16, family = "Times New Roman"),
+    legend.text = element_text(size = 13, family = "Times New Roman")
   ) +
-  scale_y_continuous(limits = c(0, NA))
+  scale_y_continuous(limits = c(0, 0.5))
 ```
 
 
 ```{r save_image2}
 save.image("data/click_networks_rw.RData")
+save.image("data/click_networks_rw2.RData")
 
-load("data/click_networks_rw.RData")
+load("data/click_networks_rw2.RData")
 ```
 
 ```{r define_pv_function}
@@ -1711,11 +1527,6 @@ page_views_republican_filtered_jan <- page_views_republican_filtered_jan[!(names
 # extract page names of the first 1000 pages
 page_names_republican_jan <- names(page_views_republican_filtered_jan)[1:100]
 page_names_democrat_jan <- names(page_views_democrat_filtered_jan)[1:100]
-
-intersect(common_pages_rep, page_names_republican_jan)
-intersect(common_pages_dem, page_names_democrat_jan)
-
-page_views_republican_filtered_jan[1:100]
 ```
 
 
@@ -1798,9 +1609,6 @@ page_views_republican_filtered_feb <- page_views_republican_filtered_feb[!(names
 # extract page names of the first 1000 pages
 page_names_republican_feb <- names(page_views_republican_filtered_feb)[1:100]
 page_names_democrat_feb <- names(page_views_democrat_filtered_feb)[1:100]
-
-intersect(common_pages_rep, page_names_republican_feb)
-intersect(common_pages_dem, page_names_democrat_feb)
 ```
 
 
@@ -1833,6 +1641,10 @@ find_nodes_with_opposing_neighbors <- function(network) {
   return(nodes_with_opposing_neighbors)
 }
 
+nodes_with_opposing_neighbors_sep <- find_nodes_with_opposing_neighbors(net_clicksep20_filtered)
+
+nodes_with_opposing_neighbors_oct <- find_nodes_with_opposing_neighbors(net_clickoct20_filtered)
+
 nodes_with_opposing_neighbors_nov <- find_nodes_with_opposing_neighbors(net_clicknov20_filtered)
 
 nodes_with_opposing_neighbors_dec <- find_nodes_with_opposing_neighbors(net_clickdec20_filtered)
@@ -1841,29 +1653,45 @@ nodes_with_opposing_neighbors_jan <- find_nodes_with_opposing_neighbors(net_clic
 
 nodes_with_opposing_neighbors_feb <- find_nodes_with_opposing_neighbors(net_clickfeb21_filtered)
 
-# Perform intersections for month 1
+# perform intersections for september
+intersect_republican_sep <- intersect(
+  nodes_with_opposing_neighbors_sep, page_names_republican_sep)
+intersect_democrat_sep <- intersect(
+  nodes_with_opposing_neighbors_sep, page_names_democrat_sep)
+total_intersections_sep <- unique(c(intersect_republican_sep, intersect_democrat_sep))
+
+# perform intersections for october
+intersect_republican_oct <- intersect(
+  nodes_with_opposing_neighbors_oct, page_names_republican_oct)
+intersect_democrat_oct <- intersect(
+  nodes_with_opposing_neighbors_oct, page_names_democrat_oct)
+total_intersections_oct <- unique(c(intersect_republican_oct, intersect_democrat_oct))
+
+# Perform intersections for november
 intersect_republican_nov <- intersect(
   nodes_with_opposing_neighbors_nov, page_names_republican)
 intersect_democrat_nov <- intersect(
   nodes_with_opposing_neighbors_nov, page_names_democrat)
 total_intersections_nov <- unique(c(intersect_republican_nov, intersect_democrat_nov))
 
-# Perform intersections for month 2
+# Perform intersections for december
 intersect_republican_dec <- intersect(nodes_with_opposing_neighbors_dec, page_names_republican_dec)
 intersect_democrat_dec <- intersect(nodes_with_opposing_neighbors_dec, page_names_democrat_dec)
 total_intersections_dec <- unique(c(intersect_republican_dec, intersect_democrat_dec))
 
-# Perform intersections for month 3
+# Perform intersections for january
 intersect_republican_jan <- intersect(nodes_with_opposing_neighbors_jan, page_names_republican_jan)
 intersect_democrat_jan <- intersect(nodes_with_opposing_neighbors_jan, page_names_democrat_jan)
 total_intersections_jan <- unique(c(intersect_republican_jan, intersect_democrat_jan))
 
-# Perform intersections for month 4
+# Perform intersections for february
 intersect_republican_feb <- intersect(nodes_with_opposing_neighbors_feb, page_names_republican_feb)
 intersect_democrat_feb <- intersect(nodes_with_opposing_neighbors_feb, page_names_democrat_feb)
 total_intersections_feb <- unique(c(intersect_republican_feb, intersect_democrat_feb))
 
 # Get the counts for each month
+total_count_sep <- length(total_intersections_sep)
+total_count_oct <- length(total_intersections_oct)
 total_count_nov <- length(total_intersections_nov)
 total_count_dec <- length(total_intersections_dec)
 total_count_jan <- length(total_intersections_jan)
@@ -1871,24 +1699,34 @@ total_count_feb <- length(total_intersections_feb)
 
 
 # Create a new object to store the results
-result <- list(November = total_count_nov,
+result <- list(September = total_count_sep,
+               October = total_count_oct,
+               November = total_count_nov,
                December = total_count_dec,
                January = total_count_jan,
                February = total_count_feb)
 
 # Create histogram
 result_df <- data.frame(
-  Month = factor(names(result), levels = c("November", "December", "January", "February")),
+  Month = factor(names(result), levels = c( "September", "October", "November", "December", "January", "February")),
   Count = unlist(result)
 )
 
-ggplot(result_df, aes(x = Month, y = Count, fill = Month)) +
+ggplot(result_df, aes(x = Month, y = Count)) +
   geom_bar(stat = "identity") +
   theme_minimal() +
-  labs(title = "Number of Pages with Opposing Neighbors",
-       x = "Month",
-       y = "Count of Pages") +
-  theme(legend.position = "none")
+  labs(
+    title = "Figure AX. Number of Popular Pages with Neighbors of the Opposite Party",
+    x = "Month",
+    y = "Count of Pages"
+  ) +
+  theme(
+    text = element_text(family = "Times New Roman"),  # Set all text to Times New Roman
+    plot.title = element_text(hjust = 0.5, size = 18),  # Center the title and set the size
+    axis.title = element_text(size = 25),  # Set axis titles size
+    axis.text = element_text(size = 15)    # Set axis text size
+  ) +
+  theme(legend.position = "none")  # Remove legend if not needed
 
 ```
 
@@ -1936,25 +1774,12 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
     current_node_index <- match(current_node, node_names)
     neighbor_weights <- get_weights(graph, current_node_index, node_neighbor_indices)
     
-    # Check for valid weights and match length of weights with neighbors
-   # if (any(is.na(neighbor_weights)) || length(neighbor_weights) != length(node_neighbors)) {
-      #cat("Debug Info: Incorrect weights length\n")
-      #cat("node_neighbors length: ", length(node_neighbors), "\n")
-      #cat("neighbor_weights length: ", length(neighbor_weights), "\n")
-      #return(NA)
-    #}
     
     # Calculate sum of edge weights
     sum_weights <- sum(neighbor_weights)
     
     # Normalize edge weights to obtain probabilities
     probabilities <- neighbor_weights / sum_weights
-    
-    # Debugging prints to validate lengths
-   # cat("Debug Info: Step ", i, "\n")
-    #cat("node_neighbors: ", node_neighbors, "\n")
-    #cat("neighbor_weights: ", neighbor_weights, "\n")
-   # cat("probabilities: ", probabilities, "\n")
     
     # Sample a neighbor using the probabilities
     next_node_index <- sample(length(node_neighbors), 1, prob = probabilities)
@@ -2116,505 +1941,51 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
 }
 ```
 
-```{r}
-# get number of "Other" pages for September, October, November, December, January and February
-
-(n_other_sep <- sum(V(net_clicksep20)$party == "Other"))
-(n_other_oct <- sum(V(net_clickoct20)$party == "Other"))
-(n_other_nov <- sum(V(net_clicknov20)$party == "Other"))
-(n_other_dec <- sum(V(net_clickdec20)$party == "Other"))
-(n_other_jan <- sum(V(net_clickjan21)$party == "Other"))
-(n_other_feb <- sum(V(net_clickfeb21)$party == "Other"))
-```
-
-
-
-```{r rw_september}
+```{r run_random_walks}
 # run random walks for September
+results_dem_sep <- analyze_party_walk(
+  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 50)
 
-results_sep20_1d <- analyze_party_walk(
-  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 10)
+results_rep_sep <- analyze_party_walk(
+  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 50)
 
-results_sep20_2d <- analyze_party_walk(
-  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 10)
-
-results_sep20_3d <- analyze_party_walk(
-  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 10)
-
-results_sep20_4d <- analyze_party_walk(
-  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 10)
-
-results_sep20_5d <- analyze_party_walk(
-  net_clicksep20, "Democrat", page_names_democrat_sep, steps = 5, iterations = 10)
-
-results_sep20_1r <- analyze_party_walk(
-  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 10)
-
-results_sep20_2r <- analyze_party_walk(
-  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 10)
-
-results_sep20_3r <- analyze_party_walk(
-  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 10)
-
-results_sep20_4r <- analyze_party_walk(
-  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 10)
-
-results_sep20_5r <- analyze_party_walk(
-  net_clicksep20, "Republican", page_names_republican_sep, steps = 5, iterations = 10)
-
-# aggregate the results
-data_list_dem_sep <- list(
-  results_sep20_1d, results_sep20_2d, results_sep20_3d, results_sep20_4d, results_sep20_5d)
-
-data_list_rep_sep <- list(
-  results_sep20_1r, results_sep20_2r, results_sep20_3r, results_sep20_4r, results_sep20_5r)
-
-# Initialize accumulator
-results_dem_sep <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_dem_sep) {
-  results_dem_sep$steps <- results_dem_sep$steps + obj$steps
-  results_dem_sep$n_part_shift <- results_dem_sep$n_part_shift + obj$n_part_shift
-  results_dem_sep$n_trapped <- results_dem_sep$n_trapped + obj$n_trapped
-  results_dem_sep$n_republican <- results_dem_sep$n_republican + obj$n_republican
-  results_dem_sep$n_democrat <- results_dem_sep$n_democrat + obj$n_democrat
-  results_dem_sep$n_other <- results_dem_sep$n_other + obj$n_other
-  results_dem_sep$n_of_shift_steps_1 <- results_dem_sep$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_dem_sep$n_of_shift_steps_2 <- results_dem_sep$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_dem_sep$n_of_shift_steps_3 <- results_dem_sep$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_dem_sep$n_of_shift_steps_4 <- results_dem_sep$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_dem_sep$n_of_shift_steps_5 <- results_dem_sep$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-results_dem_sep$steps <- results_dem_sep$steps / steps_count
-
-# initialize accumulator
-results_rep_sep <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-
-steps_count <- 0
-
-# Iterate through each object to sum and count
-
-for (obj in data_list_rep_sep) {
-  results_rep_sep$steps <- results_rep_sep$steps + obj$steps
-  results_rep_sep$n_part_shift <- results_rep_sep$n_part_shift + obj$n_part_shift
-  results_rep_sep$n_trapped <- results_rep_sep$n_trapped + obj$n_trapped
-  results_rep_sep$n_republican <- results_rep_sep$n_republican + obj$n_republican
-  results_rep_sep$n_democrat <- results_rep_sep$n_democrat + obj$n_democrat
-  results_rep_sep$n_other <- results_rep_sep$n_other + obj$n_other
-  results_rep_sep$n_of_shift_steps_1 <- results_rep_sep$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_rep_sep$n_of_shift_steps_2 <- results_rep_sep$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_rep_sep$n_of_shift_steps_3 <- results_rep_sep$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_rep_sep$n_of_shift_steps_4 <- results_rep_sep$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_rep_sep$n_of_shift_steps_5 <- results_rep_sep$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-results_rep_sep$steps <- results_rep_sep$steps / steps_count
-```
-
-
-```{r rw_october}
 # run random walks for October
+results_dem_oct <- analyze_party_walk(
+  net_clickoct20, "Democrat", page_names_democrat_oct, steps = 5, iterations = 50)
 
-results_oct20_1d <- analyze_party_walk(
-  net_clickoct20, "Democrat", page_names_democrat_oct, steps = 5, iterations = 10)
+results_rep_oct <- analyze_party_walk(
+  net_clickoct20, "Republican", page_names_republican_oct, steps = 5, iterations = 50)
 
-results_oct20_2d <- analyze_party_walk(
-  net_clickoct20, "Democrat", page_names_democrat_oct, steps = 5, iterations = 10)
+# run random walks for November
+results_dem_nov <- analyze_party_walk(
+  net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 50)
 
-results_oct20_3d <- analyze_party_walk(
-  net_clickoct20, "Democrat", page_names_democrat_oct, steps = 5, iterations = 10)
+results_rep_nov <- analyze_party_walk(
+  net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 50)
 
-results_oct20_4d <- analyze_party_walk(
-  net_clickoct20, "Democrat", page_names_democrat_oct, steps = 5, iterations = 10)
-
-results_oct20_5d <- analyze_party_walk(
-  net_clickoct20, "Democrat", page_names_democrat_oct, steps = 5, iterations = 10)
-
-results_oct20_1r <- analyze_party_walk(
-  net_clickoct20, "Republican", page_names_republican_oct, steps = 5, iterations = 10)
-
-results_oct20_2r <- analyze_party_walk(
-  net_clickoct20, "Republican", page_names_republican_oct, steps = 5, iterations = 10)
-
-results_oct20_3r <- analyze_party_walk(
-  net_clickoct20, "Republican", page_names_republican_oct, steps = 5, iterations = 10)
-
-results_oct20_4r <- analyze_party_walk(
-  net_clickoct20, "Republican", page_names_republican_oct, steps = 5, iterations = 10)
-
-results_oct20_5r <- analyze_party_walk(
-  net_clickoct20, "Republican", page_names_republican_oct, steps = 5, iterations = 10)
-
-# aggregate the results
-data_list_dem_oct <- list(
-  results_oct20_1d, results_oct20_2d, results_oct20_3d, results_oct20_4d, results_oct20_5d)
-
-data_list_rep_oct <- list(
-  results_oct20_1r, results_oct20_2r, results_oct20_3r, results_oct20_4r, results_oct20_5r)
-
-# Initialize accumulator
-results_dem_oct <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_dem_oct) {
-  results_dem_oct$steps <- results_dem_oct$steps + obj$steps
-  results_dem_oct$n_part_shift <- results_dem_oct$n_part_shift + obj$n_part_shift
-  results_dem_oct$n_trapped <- results_dem_oct$n_trapped + obj$n_trapped
-  results_dem_oct$n_republican <- results_dem_oct$n_republican + obj$n_republican
-  results_dem_oct$n_democrat <- results_dem_oct$n_democrat + obj$n_democrat
-  results_dem_oct$n_other <- results_dem_oct$n_other + obj$n_other
-  results_dem_oct$n_of_shift_steps_1 <- results_dem_oct$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_dem_oct$n_of_shift_steps_2 <- results_dem_oct$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_dem_oct$n_of_shift_steps_3 <- results_dem_oct$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_dem_oct$n_of_shift_steps_4 <- results_dem_oct$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_dem_oct$n_of_shift_steps_5 <- results_dem_oct$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-results_dem_oct$steps <- results_dem_oct$steps / steps_count
-
-# initialize accumulator
-results_rep_oct <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_rep_oct) {
-  results_rep_oct$steps <- results_rep_oct$steps + obj$steps
-  results_rep_oct$n_part_shift <- results_rep_oct$n_part_shift + obj$n_part_shift
-  results_rep_oct$n_trapped <- results_rep_oct$n_trapped + obj$n_trapped
-  results_rep_oct$n_republican <- results_rep_oct$n_republican + obj$n_republican
-  results_rep_oct$n_democrat <- results_rep_oct$n_democrat + obj$n_democrat
-  results_rep_oct$n_other <- results_rep_oct$n_other + obj$n_other
-  results_rep_oct$n_of_shift_steps_1 <- results_rep_oct$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_rep_oct$n_of_shift_steps_2 <- results_rep_oct$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_rep_oct$n_of_shift_steps_3 <- results_rep_oct$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_rep_oct$n_of_shift_steps_4 <- results_rep_oct$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_rep_oct$n_of_shift_steps_5 <- results_rep_oct$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-results_rep_oct$steps <- results_rep_oct$steps / steps_count
-```
-
-
-```{r rw_november}
-# run random walks for november
-results_nov20_1d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 10)
-
-results_nov20_2d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 10)
-
-results_nov20_3d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 10)
-
-results_nov20_4d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 10)
-
-results_nov20_5d <- analyze_party_walk(net_clicknov20, "Democrat", page_names_democrat, steps = 5, iterations = 10)
-
-results_nov20_1r <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 10)
-
-results_nov20_2r <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 10)
-
-results_nov20_3r <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 10)
-
-results_nov20_4r <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 10)
-
-results_nov20_5r <- analyze_party_walk(net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 10)
-
-# aggregate the results
-data_list_dem_nov <- list(
-  results_nov20_1d, results_nov20_2d, results_nov20_3d, results_nov20_4d, results_nov20_5d)
-
-data_list_rep_nov <- list(
-  results_nov20_1r, results_nov20_2r, results_nov20_3r, results_nov20_4r, results_nov20_5r)
-
-# Initialize accumulator
-results_dem_nov <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_dem_nov) {
-  results_dem_nov$steps <- results_dem_nov$steps + obj$steps
-  results_dem_nov$n_part_shift <- results_dem_nov$n_part_shift + obj$n_part_shift
-  results_dem_nov$n_trapped <- results_dem_nov$n_trapped + obj$n_trapped
-  results_dem_nov$n_republican <- results_dem_nov$n_republican + obj$n_republican
-  results_dem_nov$n_democrat <- results_dem_nov$n_democrat + obj$n_democrat
-  results_dem_nov$n_other <- results_dem_nov$n_other + obj$n_other
-  results_dem_nov$n_of_shift_steps_1 <- results_dem_nov$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_dem_nov$n_of_shift_steps_2 <- results_dem_nov$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_dem_nov$n_of_shift_steps_3 <- results_dem_nov$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_dem_nov$n_of_shift_steps_4 <- results_dem_nov$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_dem_nov$n_of_shift_steps_5 <- results_dem_nov$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-results_dem_nov$steps <- results_dem_nov$steps / steps_count
-
-# initialize accumulator
-results_rep_nov <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_rep_nov) {
-  results_rep_nov$steps <- results_rep_nov$steps + obj$steps
-  results_rep_nov$n_part_shift <- results_rep_nov$n_part_shift + obj$n_part_shift
-  results_rep_nov$n_trapped <- results_rep_nov$n_trapped + obj$n_trapped
-  results_rep_nov$n_republican <- results_rep_nov$n_republican + obj$n_republican
-  results_rep_nov$n_democrat <- results_rep_nov$n_democrat + obj$n_democrat
-  results_rep_nov$n_other <- results_rep_nov$n_other + obj$n_other
-  results_rep_nov$n_of_shift_steps_1 <- results_rep_nov$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_rep_nov$n_of_shift_steps_2 <- results_rep_nov$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_rep_nov$n_of_shift_steps_3 <- results_rep_nov$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_rep_nov$n_of_shift_steps_4 <- results_rep_nov$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_rep_nov$n_of_shift_steps_5 <- results_rep_nov$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-```
-
-```{r rw_december}
 # run random walks for december
-results_dec20_1d <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 10)
+results_dem_dec <- analyze_party_walk(
+  net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 50)
 
-results_dec20_2d <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 10)
+results_rep_dec <- analyze_party_walk(
+  net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 50)
 
-results_dec20_3d <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 10)
-
-results_dec20_4d <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 10)
-
-results_dec20_5d <- analyze_party_walk(net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 10)
-
-results_dec20_1r <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 10)
-
-results_dec20_2r <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 10)
-
-results_dec20_3r <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 10)
-
-results_dec20_4r <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 10)
-
-results_dec20_5r <- analyze_party_walk(net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 10)
-
-# aggregate the results
-data_list_dem_dec <- list(
-  results_dec20_1d, results_dec20_2d, results_dec20_3d, results_dec20_4d, results_dec20_5d)
-
-data_list_rep_dec <- list(
-  results_dec20_1r, results_dec20_2r, results_dec20_3r, results_dec20_4r, results_dec20_5r)
-
-# Initialize accumulator
-results_dem_dec <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_dem_dec) {
-  results_dem_dec$steps <- results_dem_dec$steps + obj$steps
-  results_dem_dec$n_part_shift <- results_dem_dec$n_part_shift + obj$n_part_shift
-  results_dem_dec$n_trapped <- results_dem_dec$n_trapped + obj$n_trapped
-  results_dem_dec$n_republican <- results_dem_dec$n_republican + obj$n_republican
-  results_dem_dec$n_democrat <- results_dem_dec$n_democrat + obj$n_democrat
-  results_dem_dec$n_other <- results_dem_dec$n_other + obj$n_other
-  results_dem_dec$n_of_shift_steps_1 <- results_dem_dec$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_dem_dec$n_of_shift_steps_2 <- results_dem_dec$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_dem_dec$n_of_shift_steps_3 <- results_dem_dec$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_dem_dec$n_of_shift_steps_4 <- results_dem_dec$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_dem_dec$n_of_shift_steps_5 <- results_dem_dec$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-results_dem_dec$steps <- results_dem_dec$steps / steps_count
-
-# initialize accumulator
-results_rep_dec <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_rep_dec) {
-  results_rep_dec$steps <- results_rep_dec$steps + obj$steps
-  results_rep_dec$n_part_shift <- results_rep_dec$n_part_shift + obj$n_part_shift
-  results_rep_dec$n_trapped <- results_rep_dec$n_trapped + obj$n_trapped
-  results_rep_dec$n_republican <- results_rep_dec$n_republican + obj$n_republican
-  results_rep_dec$n_democrat <- results_rep_dec$n_democrat + obj$n_democrat
-  results_rep_dec$n_other <- results_rep_dec$n_other + obj$n_other
-  results_rep_dec$n_of_shift_steps_1 <- results_rep_dec$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_rep_dec$n_of_shift_steps_2 <- results_rep_dec$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_rep_dec$n_of_shift_steps_3 <- results_rep_dec$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_rep_dec$n_of_shift_steps_4 <- results_rep_dec$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_rep_dec$n_of_shift_steps_5 <- results_rep_dec$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-results_rep_dec$steps <- results_rep_dec$steps / steps_count
-```
-
-
-
-```{r rw_january}
 # run random walks for january
-results_jan21_1d <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 10)
+results_dem_jan <- analyze_party_walk(
+  net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 50)
 
-results_jan21_2d <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 10)
+results_rep_jan <- analyze_party_walk(
+  net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 50)
 
-results_jan21_3d <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 10)
-
-results_jan21_4d <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 10)
-
-results_jan21_5d <- analyze_party_walk(net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 10)
-
-results_jan21_1r <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 10)
-
-results_jan21_2r <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 10)
-
-results_jan21_3r <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 10)
-
-results_jan21_4r <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 10)
-
-results_jan21_5r <- analyze_party_walk(net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 10)
-
-# aggregate the results
-data_list_dem_jan <- list(
-  results_jan21_1d, results_jan21_2d, results_jan21_3d, results_jan21_4d, results_jan21_5d)
-
-data_list_rep_jan <- list(
-  results_jan21_1r, results_jan21_2r, results_jan21_3r, results_jan21_4r, results_jan21_5r)
-
-# Initialize accumulator
-
-results_dem_jan <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_dem_jan) {
-  results_dem_jan$steps <- results_dem_jan$steps + obj$steps
-  results_dem_jan$n_part_shift <- results_dem_jan$n_part_shift + obj$n_part_shift
-  results_dem_jan$n_trapped <- results_dem_jan$n_trapped + obj$n_trapped
-  results_dem_jan$n_republican <- results_dem_jan$n_republican + obj$n_republican
-  results_dem_jan$n_democrat <- results_dem_jan$n_democrat + obj$n_democrat
-  results_dem_jan$n_other <- results_dem_jan$n_other + obj$n_other
-  results_dem_jan$n_of_shift_steps_1 <- results_dem_jan$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_dem_jan$n_of_shift_steps_2 <- results_dem_jan$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_dem_jan$n_of_shift_steps_3 <- results_dem_jan$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_dem_jan$n_of_shift_steps_4 <- results_dem_jan$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_dem_jan$n_of_shift_steps_5 <- results_dem_jan$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-# Calculate the average of steps
-results_dem_jan$steps <- results_dem_jan$steps / steps_count
-
-# initialize accumulator
-results_rep_jan <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_rep_jan) {
-  results_rep_jan$steps <- results_rep_jan$steps + obj$steps
-  results_rep_jan$n_part_shift <- results_rep_jan$n_part_shift + obj$n_part_shift
-  results_rep_jan$n_trapped <- results_rep_jan$n_trapped + obj$n_trapped
-  results_rep_jan$n_republican <- results_rep_jan$n_republican + obj$n_republican
-  results_rep_jan$n_democrat <- results_rep_jan$n_democrat + obj$n_democrat
-  results_rep_jan$n_other <- results_rep_jan$n_other + obj$n_other
-  results_rep_jan$n_of_shift_steps_1 <- results_rep_jan$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_rep_jan$n_of_shift_steps_2 <- results_rep_jan$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_rep_jan$n_of_shift_steps_3 <- results_rep_jan$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_rep_jan$n_of_shift_steps_4 <- results_rep_jan$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_rep_jan$n_of_shift_steps_5 <- results_rep_jan$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-# Calculate the average of steps
-results_rep_jan$steps <- results_rep_jan$steps / steps_count
-```
-
-
-```{r rw_february}
 # run random walks for february
-results_feb21_1d <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 10)
+results_dem_feb <- analyze_party_walk(
+  net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 50)
 
-results_feb21_2d <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 10)
-
-results_feb21_3d <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 10)
-
-results_feb21_4d <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 10)
-
-results_feb21_5d <- analyze_party_walk(net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 10)
-
-results_feb21_1r <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 10)
-
-results_feb21_2r <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 10)
-
-results_feb21_3r <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 10)
-
-results_feb21_4r <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 10)
-
-results_feb21_5r <- analyze_party_walk(net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 10)
-
-# aggregate the results
-data_list_dem_feb <- list(
-  results_feb21_1d, results_feb21_2d, results_feb21_3d, results_feb21_4d, results_feb21_5d)
-
-data_list_rep_feb <- list(
-  results_feb21_1r, results_feb21_2r, results_feb21_3r, results_feb21_4r, results_feb21_5r)
-
-# Initialize accumulator
-results_dem_feb <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_dem_feb) {
-  results_dem_feb$steps <- results_dem_feb$steps + obj$steps
-  results_dem_feb$n_part_shift <- results_dem_feb$n_part_shift + obj$n_part_shift
-  results_dem_feb$n_trapped <- results_dem_feb$n_trapped + obj$n_trapped
-  results_dem_feb$n_republican <- results_dem_feb$n_republican + obj$n_republican
-  results_dem_feb$n_democrat <- results_dem_feb$n_democrat + obj$n_democrat
-  results_dem_feb$n_other <- results_dem_feb$n_other + obj$n_other
-  results_dem_feb$n_of_shift_steps_1 <- results_dem_feb$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_dem_feb$n_of_shift_steps_2 <- results_dem_feb$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_dem_feb$n_of_shift_steps_3 <- results_dem_feb$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_dem_feb$n_of_shift_steps_4 <- results_dem_feb$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_dem_feb$n_of_shift_steps_5 <- results_dem_feb$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-# Calculate the average of steps
-results_dem_feb$steps <- results_dem_feb$steps / steps_count
-
-# Initialize accumulator
-results_rep_feb <- list(steps = 0, n_part_shift = 0, n_trapped = 0, n_republican = 0, n_democrat = 0, n_other = 0, n_of_shift_steps_1 = 0, n_of_shift_steps_2 = 0, n_of_shift_steps_3 = 0, n_of_shift_steps_4 = 0, n_of_shift_steps_5 = 0)
-steps_count <- 0
-
-# Iterate through each object to sum and count
-for (obj in data_list_rep_feb) {
-  results_rep_feb$steps <- results_rep_feb$steps + obj$steps
-  results_rep_feb$n_part_shift <- results_rep_feb$n_part_shift + obj$n_part_shift
-  results_rep_feb$n_trapped <- results_rep_feb$n_trapped + obj$n_trapped
-  results_rep_feb$n_republican <- results_rep_feb$n_republican + obj$n_republican
-  results_rep_feb$n_democrat <- results_rep_feb$n_democrat + obj$n_democrat
-  results_rep_feb$n_other <- results_rep_feb$n_other + obj$n_other
-  results_rep_feb$n_of_shift_steps_1 <- results_rep_feb$n_of_shift_steps_1 + obj$n_of_shift_steps_1
-  results_rep_feb$n_of_shift_steps_2 <- results_rep_feb$n_of_shift_steps_2 + obj$n_of_shift_steps_2
-  results_rep_feb$n_of_shift_steps_3 <- results_rep_feb$n_of_shift_steps_3 + obj$n_of_shift_steps_3
-  results_rep_feb$n_of_shift_steps_4 <- results_rep_feb$n_of_shift_steps_4 + obj$n_of_shift_steps_4
-  results_rep_feb$n_of_shift_steps_5 <- results_rep_feb$n_of_shift_steps_5 + obj$n_of_shift_steps_5
-  steps_count <- steps_count + 1
-}
-
-# Calculate the average of steps
-results_rep_feb$steps <- results_rep_feb$steps / steps_count
+results_rep_feb <- analyze_party_walk(
+  net_clickfeb21, "Republican", page_names_republican_feb, steps = 5, iterations = 50)
 ```
 
-```{r}
+```{r results_rw}
 # Create the table
 results <- data.frame(
   Month = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
@@ -2692,9 +2063,9 @@ random_walk_random_networks <- function(network) {
     network)$name[republican_indices[top_100_republican_indices]]
 
   # Perform the analyze_party_walk for Democratic nodes
-  results_random_dem <- analyze_party_walk(network, "Democrat", top_100_democratic_elements, steps = 5, iterations = 50)
+  results_random_dem <- analyze_party_walk(network, "Democrat", top_100_democratic_elements, steps = 5, iterations = 75)
   
-  results_random_rep <- analyze_party_walk(network, "Republican", top_100_republican_elements, steps = 5, iterations = 50)
+  results_random_rep <- analyze_party_walk(network, "Republican", top_100_republican_elements, steps = 5, iterations = 75)
   
   # Return the results of the random walk
   return(
@@ -2768,24 +2139,26 @@ custom_colors <- c("Democrat" = "dodgerblue", "Republican" = "red")
 barplot <- ggplot(exposure_data_long, aes(x = month, y = value, fill = variable)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(
-    title = "Figure 4. Exposure to Diverse Information by Party",
+    title = "Figure 4. Exposure to Diverse Information",
     x = "Month",
     y = "Exposure to Diverse Information",
-    fill = "Party"
+    fill = "Party of Starting Node"
   ) +
   scale_fill_manual(values = custom_colors) +
   theme_minimal() +
   theme(
     text = element_text(family = "Times New Roman"),  # Set all text to Times New Roman
-    plot.title = element_text(hjust = 0.5, size = 18),  # Center the plot title and set size
-    axis.title = element_text(size = 15),  # Set size for axis titles
-    axis.text = element_text(size = 10),  # Set size for axis text
-    legend.text = element_text(size = 10, color = "black"),  # Set size and color for legend text
-    legend.title = element_text(size = 15, color = "black")  # Set size and color for legend title
+    plot.title = element_text(hjust = 0.5, size = 20),  # Center the plot title and set size
+    axis.title = element_text(size = 16),  # Set size for axis titles
+    axis.text = element_text(size = 13),  # Set size for axis text
+    legend.text = element_text(size = 13, color = "black"),  # Set size and color for legend text
+    legend.title = element_text(size = 16, color = "black")  # Set size and color for legend title
   )
+
+barplot
 ```
 
-```{r}
+```{r exposure_by_steps}
 # Define the function to calculate exposure percentage
 calculate_exposure_percentage <- function(results) {
   total_walks <- 5000
@@ -2861,61 +2234,25 @@ ggplot(exposure_df, aes(x = steps, y = exposure, color = month, group = month)) 
   geom_line() +
   geom_point(size = 1) +  # Adjust the size of the points
   labs(
-    title = "Figure 5. Exposure to Diverse Information By Number of Steps",
-    x = "Steps",
+    title = "Figure 6. Exposure to Diverse Information By Number of Steps",
+    x = "Number of Steps",
     y = "% of Walks Exposed to Other Partition",
     color = "Month"
   ) +
   theme_minimal() +
   theme(
     text = element_text(family = "Times New Roman"),
-    plot.title = element_text(hjust = 0.5, size = 18), 
-    axis.title = element_text(size = 15),
-    axis.text = element_text(size = 10),
-    legend.text = element_text(size = 10),
-    legend.title = element_text(size = 15)
+    plot.title = element_text(hjust = 0.5, size = 20), 
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 13),
+    legend.text = element_text(size = 13),
+    legend.title = element_text(size = 18)
   )
 ```
 
 
 
-```{r}
-# calculate exposure for results of random networks 
-exposure_random_sep20 <- calculate_exposure(results_random_sep20_dem)
-exposure_random_sep20_rep <- calculate_exposure(results_random_sep20_rep)
-exposure_random_oct20 <- calculate_exposure(results_random_oct20_dem)
-exposure_random_oct20_rep <- calculate_exposure(results_random_oct20_rep)
-exposure_random_nov20 <- calculate_exposure(results_random_nov20_dem)
-exposure_random_nov20_rep <- calculate_exposure(results_random_nov20_rep)
-exposure_random_dec20 <- calculate_exposure(results_random_dec20_dem)
-exposure_random_dec20_rep <- calculate_exposure(results_random_dec20_rep)
-exposure_random_jan21 <- calculate_exposure(results_random_jan21_dem)
-exposure_random_jan21_rep <- calculate_exposure(results_random_jan21_rep)
-exposure_random_feb21 <- calculate_exposure(results_random_feb21_dem)
-exposure_random_feb21_rep <- calculate_exposure(results_random_feb21_rep)
-
-# plot the results
-exposure_random_data <- data.frame(
-  month = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
-  democrat = c(exposure_random_sep20, exposure_random_oct20, exposure_random_nov20, exposure_random_dec20, exposure_random_jan21, exposure_random_feb21),
-  republican = c(exposure_random_sep20_rep, exposure_random_oct20_rep, exposure_random_nov20_rep, exposure_random_dec20_rep, exposure_random_jan21_rep, exposure_random_feb21_rep)
-)
-
-
-# factorise month
-exposure_random_data$month <- factor(exposure_random_data$month, levels = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
-
-exposure_random_data_long <- pivot_longer(exposure_random_data, cols = c(democrat, republican), names_to = "variable", values_to = "value")
-
-ggplot(exposure_random_data_long, aes(x = month, y = value, fill = variable)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Exposure to Diverse Information by Party in Random Networks",
-       x = "Month",
-       y = "Exposure to Diverse Information",
-       fill = "Party") +
-  theme_minimal()
-```
-```{r}
+```{r exposure_random_networks}
 # Define the function to calculate exposure percentage for the results of random networks
 calculate_exposure <- function(results) {
   total_walks <- 5000
@@ -2964,37 +2301,28 @@ custom_colors <- c("Democrat" = "dodgerblue", "Republican" = "red")
 barplot_random <- ggplot(exposure_random_data_long, aes(x = month, y = value, fill = variable)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(
-    title = "Figure 5. Exposure to Diverse Information by Party in Random Networks",
+    title = "Figure 5. Exposure to Diverse Information in Random Networks",
     x = "Month",
     y = "Exposure to Diverse Information",
-    fill = "Party"
+    fill = "Party of Starting Node"
   ) +
   scale_fill_manual(values = custom_colors) +
   theme_minimal() +
   theme(
     text = element_text(family = "Times New Roman"),  # Set all text to Times New Roman
-    plot.title = element_text(hjust = 0.5, size = 15),  # Center the plot title and set size
-    axis.title = element_text(size = 12),  # Set size for axis titles
-    axis.text = element_text(size = 8),  # Set size for axis text
-    legend.text = element_text(size = 8, color = "black"),  # Set size and color for legend text
-    legend.title = element_text(size = 12, color = "black")  # Set size and color for legend title
+    plot.title = element_text(hjust = 0.5, size = 20),  # Center the plot title and set size
+    axis.title = element_text(size = 16),  # Set size for axis titles
+    axis.text = element_text(size = 13),  # Set size for axis text
+    legend.text = element_text(size = 13, color = "black"),  # Set size and color for legend text
+    legend.title = element_text(size = 16, color = "black")  # Set size and color for legend title
   )
 
-```
 
-```{r}
-
-install.packages("patchwork")
-library(patchwork)
-
-combined_plot <- (barplot + barplot_random) +
-  plot_layout(ncol = 2, widths = c(0.5, 0.5))  # Adjust widths as needed
-
-print(combined_plot)
+barplot_random
 ```
 
 
-```{r}
+```{r exposure_by_step_random}
 # Calculate exposure percentage for results of random networks
 calculate_exposure_percentage <- function(results) {
   total_walks <- 5000
@@ -3070,20 +2398,21 @@ ggplot(exposure_random_df, aes(x = steps, y = exposure, color = month, group = m
   geom_point() +
   labs(
     title = "Figure 7. Exposure to Diverse Information By Number of Steps in Random Networks",
-    x = "Steps",
+    x = "Number of Steps",
     y = "% of Walks Exposed to Other Partition",
     color = "Month"
   ) +
   theme_minimal() +
   theme(
     text = element_text(family = "Times New Roman"),
-    plot.title = element_text(hjust = 0.5, size = 18), 
-    axis.title = element_text(size = 15),
-    axis.text = element_text(size = 10),
-    legend.text = element_text(size = 10),
-    legend.title = element_text(size = 15)
+    plot.title = element_text(hjust = 0.5, size = 20), 
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 13),
+    legend.text = element_text(size = 13),
+    legend.title = element_text(size = 16)
   )
 ```
+
 
 ```{r create_robustness_networks}
 create_net_robust <- function(full_network) {
@@ -3247,14 +2576,6 @@ ggplot(results_long, aes(x = Month, y = Count, color = Interaction, group = Inte
 ```
 
 ```{r robustness_modularity}
-# Define a function to calculate modularity for a given network and party membership
-calculate_modularity <- function(network, party_levels = c("Democrat", "Republican")) {
-  membership <- V(network)$party
-  membership <- as.numeric(factor(membership, levels = party_levels))
-  mod <- modularity(network, membership, weights = E(network)$weight)
-  return(mod)
-}
-
 # Calculate modularity for each robust network version
 modularity_scores <- data.frame(
   Month = c(
@@ -3301,5 +2622,267 @@ ggplot(modularity_scores, aes(x = Month, y = Modularity)) +
     legend.title = element_text(family = "Times New Roman")
   ) +
   scale_y_continuous(limits = c(0, 0.4))
+```
+
+```{r robustness_boundary_polarisation}
+bp_robust_nov19 <- calculate_spearman_correlation(robust_net_nov19)
+bp_robust_dec19 <- calculate_spearman_correlation(robust_net_dec19)
+bp_robust_jan20 <- calculate_spearman_correlation(robust_net_jan20)
+bp_robust_feb20 <- calculate_spearman_correlation(robust_net_feb20)
+bp_robust_mar20 <- calculate_spearman_correlation(robust_net_mar20)
+bp_robust_apr20 <- calculate_spearman_correlation(robust_net_apr20)
+bp_robust_may20 <- calculate_spearman_correlation(robust_net_may20)
+bp_robust_jun20 <- calculate_spearman_correlation(robust_net_jun20)
+bp_robust_jul20 <- calculate_spearman_correlation(robust_net_jul20)
+bp_robust_aug20 <- calculate_spearman_correlation(robust_net_aug20)
+bp_robust_sep20 <- calculate_spearman_correlation(robust_net_sep20)
+bp_robust_oct20 <- calculate_spearman_correlation(robust_net_oct20)
+bp_robust_nov20 <- calculate_spearman_correlation(robust_net_nov20)
+bp_robust_dec20 <- calculate_spearman_correlation(robust_net_dec20)
+bp_robust_jan21 <- calculate_spearman_correlation(robust_net_jan21)
+bp_robust_feb21 <- calculate_spearman_correlation(robust_net_feb21)
+bp_robust_mar21 <- calculate_spearman_correlation(robust_net_mar21)
+bp_robust_apr21 <- calculate_spearman_correlation(robust_net_apr21)
+bp_robust_may21 <- calculate_spearman_correlation(robust_net_may21)
+bp_robust_jun21 <- calculate_spearman_correlation(robust_net_jun21)
+bp_robust_jul21 <- calculate_spearman_correlation(robust_net_jul21)
+bp_robust_aug21 <- calculate_spearman_correlation(robust_net_aug21)
+bp_robust_sep21 <- calculate_spearman_correlation(robust_net_sep21)
+bp_robust_oct21 <- calculate_spearman_correlation(robust_net_oct21)
+bp_robust_nov21 <- calculate_spearman_correlation(robust_net_nov21)
+
+# create random networks for robustness
+random_robust_net_nov19 <- sample_degseq(out.deg = degree(robust_net_nov19, mode='out'), in.deg = degree(robust_net_nov19, mode='in'), method = "simple")
+
+random_robust_net_dec19 <- sample_degseq(out.deg = degree(robust_net_dec19, mode='out'), in.deg = degree(robust_net_dec19, mode='in'), method = "simple")
+
+random_robust_net_jan20 <- sample_degseq(out.deg = degree(robust_net_jan20, mode='out'), in.deg = degree(robust_net_jan20, mode='in'), method = "simple")
+
+random_robust_net_feb20 <- sample_degseq(out.deg = degree(robust_net_feb20, mode='out'), in.deg = degree(robust_net_feb20, mode='in'), method = "simple")
+
+random_robust_net_mar20 <- sample_degseq(out.deg = degree(robust_net_mar20, mode='out'), in.deg = degree(robust_net_mar20, mode='in'), method = "simple")
+
+random_robust_net_apr20 <- sample_degseq(out.deg = degree(robust_net_apr20, mode='out'), in.deg = degree(robust_net_apr20, mode='in'), method = "simple")
+
+random_robust_net_may20 <- sample_degseq(out.deg = degree(robust_net_may20, mode='out'), in.deg = degree(robust_net_may20, mode='in'), method = "simple")
+
+random_robust_net_jun20 <- sample_degseq(out.deg = degree(robust_net_jun20, mode='out'), in.deg = degree(robust_net_jun20, mode='in'), method = "simple")
+
+random_robust_net_jul20 <- sample_degseq(out.deg = degree(robust_net_jul20, mode='out'), in.deg = degree(robust_net_jul20, mode='in'), method = "simple")
+
+random_robust_net_aug20 <- sample_degseq(out.deg = degree(robust_net_aug20, mode='out'), in.deg = degree(robust_net_aug20, mode='in'), method = "simple")
+
+random_robust_net_sep20 <- sample_degseq(out.deg = degree(robust_net_sep20, mode='out'), in.deg = degree(robust_net_sep20, mode='in'), method = "simple")
+
+random_robust_net_oct20 <- sample_degseq(out.deg = degree(robust_net_oct20, mode='out'), in.deg = degree(robust_net_oct20, mode='in'), method = "simple")
+
+random_robust_net_nov20 <- sample_degseq(out.deg = degree(robust_net_nov20, mode='out'), in.deg = degree(robust_net_nov20, mode='in'), method = "simple")
+
+random_robust_net_dec20 <- sample_degseq(out.deg = degree(robust_net_dec20, mode='out'), in.deg = degree(robust_net_dec20, mode='in'), method = "simple")
+
+random_robust_net_jan21 <- sample_degseq(out.deg = degree(robust_net_jan21, mode='out'), in.deg = degree(robust_net_jan21, mode='in'), method = "simple")
+
+random_robust_net_feb21 <- sample_degseq(out.deg = degree(robust_net_feb21, mode='out'), in.deg = degree(robust_net_feb21, mode='in'), method = "simple")
+
+random_robust_net_mar21 <- sample_degseq(out.deg = degree(robust_net_mar21, mode='out'), in.deg = degree(robust_net_mar21, mode='in'), method = "simple")
+
+random_robust_net_apr21 <- sample_degseq(out.deg = degree(robust_net_apr21, mode='out'), in.deg = degree(robust_net_apr21, mode='in'), method = "simple")
+
+random_robust_net_may21 <- sample_degseq(out.deg = degree(robust_net_may21, mode='out'), in.deg = degree(robust_net_may21, mode='in'), method = "simple")
+
+random_robust_net_jun21 <- sample_degseq(out.deg = degree(robust_net_jun21, mode='out'), in.deg = degree(robust_net_jun21, mode='in'), method = "simple")
+
+random_robust_net_jul21 <- sample_degseq(out.deg = degree(robust_net_jul21, mode='out'), in.deg = degree(robust_net_jul21, mode='in'), method = "simple")
+
+random_robust_net_aug21 <- sample_degseq(out.deg = degree(robust_net_aug21, mode='out'), in.deg = degree(robust_net_aug21, mode='in'), method = "simple")
+
+random_robust_net_sep21 <- sample_degseq(out.deg = degree(robust_net_sep21, mode='out'), in.deg = degree(robust_net_sep21, mode='in'), method = "simple")
+
+random_robust_net_oct21 <- sample_degseq(out.deg = degree(robust_net_oct21, mode='out'), in.deg = degree(robust_net_oct21, mode='in'), method = "simple")
+
+random_robust_net_nov21 <- sample_degseq(out.deg = degree(robust_net_nov21, mode='out'), in.deg = degree(robust_net_nov21, mode='in'), method = "simple")
+
+bp_random_robust_nov19 <- assign_attributes_and_calculate_correlation(random_robust_net_nov19, robust_net_nov19)
+
+bp_random_robust_dec19 <- assign_attributes_and_calculate_correlation(random_robust_net_dec19, robust_net_dec19)
+
+bp_random_robust_jan20 <- assign_attributes_and_calculate_correlation(random_robust_net_jan20, robust_net_jan20)
+
+bp_random_robust_feb20 <- assign_attributes_and_calculate_correlation(random_robust_net_feb20, robust_net_feb20)
+
+bp_random_robust_mar20 <- assign_attributes_and_calculate_correlation(random_robust_net_mar20, robust_net_mar20)
+
+bp_random_robust_apr20 <- assign_attributes_and_calculate_correlation(random_robust_net_apr20, robust_net_apr20)
+
+bp_random_robust_may20 <- assign_attributes_and_calculate_correlation(random_robust_net_may20, robust_net_may20)
+
+bp_random_robust_jun20 <- assign_attributes_and_calculate_correlation(random_robust_net_jun20, robust_net_jun20)
+
+bp_random_robust_jul20 <- assign_attributes_and_calculate_correlation(random_robust_net_jul20, robust_net_jul20)
+
+bp_random_robust_aug20 <- assign_attributes_and_calculate_correlation(random_robust_net_aug20, robust_net_aug20)
+
+bp_random_robust_sep20 <- assign_attributes_and_calculate_correlation(random_robust_net_sep20, robust_net_sep20)
+
+bp_random_robust_oct20 <- assign_attributes_and_calculate_correlation(random_robust_net_oct20, robust_net_oct20)
+
+bp_random_robust_nov20 <- assign_attributes_and_calculate_correlation(random_robust_net_nov20, robust_net_nov20)
+
+bp_random_robust_dec20 <- assign_attributes_and_calculate_correlation(random_robust_net_dec20, robust_net_dec20)
+
+bp_random_robust_jan21 <- assign_attributes_and_calculate_correlation(random_robust_net_jan21, robust_net_jan21)
+
+bp_random_robust_feb21 <- assign_attributes_and_calculate_correlation(random_robust_net_feb21, robust_net_feb21)
+
+bp_random_robust_mar21 <- assign_attributes_and_calculate_correlation(random_robust_net_mar21, robust_net_mar21)
+
+bp_random_robust_apr21 <- assign_attributes_and_calculate_correlation(random_robust_net_apr21, robust_net_apr21)
+
+bp_random_robust_may21 <- assign_attributes_and_calculate_correlation(random_robust_net_may21, robust_net_may21)
+
+bp_random_robust_jun21 <- assign_attributes_and_calculate_correlation(random_robust_net_jun21, robust_net_jun21)
+
+bp_random_robust_jul21 <- assign_attributes_and_calculate_correlation(random_robust_net_jul21, robust_net_jul21)
+
+bp_random_robust_aug21 <- assign_attributes_and_calculate_correlation(random_robust_net_aug21, robust_net_aug21)
+
+bp_random_robust_sep21 <- assign_attributes_and_calculate_correlation(random_robust_net_sep21, robust_net_sep21)
+
+bp_random_robust_oct21 <- assign_attributes_and_calculate_correlation(random_robust_net_oct21, robust_net_oct21)
+
+bp_random_robust_nov21 <- assign_attributes_and_calculate_correlation(random_robust_net_nov21, robust_net_nov21)
+
+# Calculate boundary polarisation for each robust network version
+boundary_polarisation_scores <- data.frame(
+  Month = c(
+    "November '19", "December '19", "January '20", "February '20", "March '20", "April '20", "May '20", "June '20", "July '20", "August '20", "September '20", "October '20", "November '20", "December '20", "January '21", "February '21", "March '21", "April '21", "May '21", "June '21", "July '21", "August '21", "September '21", "October '21", "November '21"),
+  Boundary_Polarisation = c(
+    bp_robust_nov19[1]$overall, bp_robust_dec19[1]$overall, bp_robust_jan20[1]$overall, bp_robust_feb20[1]$overall, bp_robust_mar20[1]$overall, bp_robust_apr20[1]$overall, bp_robust_may20[1]$overall, bp_robust_jun20[1]$overall, bp_robust_jul20[1]$overall, bp_robust_aug20[1]$overall, bp_robust_sep20[1]$overall, bp_robust_oct20[1]$overall, bp_robust_nov20[1]$overall, bp_robust_dec20[1]$overall, bp_robust_jan21[1]$overall, bp_robust_feb21[1]$overall, bp_robust_mar21[1]$overall, bp_robust_apr21[1]$overall, bp_robust_may21[1]$overall, bp_robust_jun21[1]$overall, bp_robust_jul21[1]$overall, bp_robust_aug21[1]$overall, bp_robust_sep21[1]$overall, bp_robust_oct21[1]$overall, bp_robust_nov21[1]$overall
+  ),
+  Random_Polarisation = c(
+    bp_random_robust_nov19[1]$overall, bp_random_robust_dec19[1]$overall, bp_random_robust_jan20[1]$overall, bp_random_robust_feb20[1]$overall, bp_random_robust_mar20[1]$overall, bp_random_robust_apr20[1]$overall, bp_random_robust_may20[1]$overall, bp_random_robust_jun20[1]$overall, bp_random_robust_jul20[1]$overall, bp_random_robust_aug20[1]$overall, bp_random_robust_sep20[1]$overall, bp_random_robust_oct20[1]$overall, bp_random_robust_nov20[1]$overall, bp_random_robust_dec20[1]$overall, bp_random_robust_jan21[1]$overall, bp_random_robust_feb21[1]$overall, bp_random_robust_mar21[1]$overall, bp_random_robust_apr21[1]$overall, bp_random_robust_may21[1]$overall, bp_random_robust_jun21[1]$overall, bp_random_robust_jul21[1]$overall, bp_random_robust_aug21[1]$overall, bp_random_robust_sep21[1]$overall, bp_random_robust_oct21[1]$overall, bp_random_robust_nov21[1]$overall
+  )
+  )
+
+boundary_polarisation_scores$Month <- factor(boundary_polarisation_scores$Month, levels = boundary_polarisation_scores$Month)
+
+# Plot the boundary polarisation scores
+custom_colors <- c("Random Networks" = "darkorange", "Empirical Networks" = "purple")
+
+ggplot(boundary_polarisation_scores, aes(x = Month, y = Boundary_Polarisation, color = "Empirical Networks")) +
+  geom_point(size = 0.8) +  # Add points
+  geom_line(aes(group = 1), color = "purple") +  # Connect points with lines
+  geom_point(aes(x = Month, y = Random_Polarisation, color = "Random Networks"), size = 0.8) +
+  geom_line(aes(x = Month, y = Random_Polarisation, group = 1), color = "darkorange") +
+  geom_vline(xintercept = 13, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
+  geom_vline(xintercept = 15, linetype = "dashed", color = "forestgreen", alpha = 0.4) +
+  annotate("text", x = 13, y = 0.1, label = "Election", vjust = 0, color = "darkgreen", family = "Times New Roman", size = 5) +
+  annotate("text", x = 15, y = 0.1, label = "Insurgence", vjust = -2, color = "darkgreen", family = "Times New Roman", size = 5) +
+  labs(x = "Month", y = "Boundary Polarisation", title = "Figure 3. Boundary Polarisation Scores from November 2019 to November 2021") +
+  scale_color_manual(values = custom_colors) +
+  theme_minimal() +  # Minimal theme
+  theme(
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1, family = "Times New Roman"),
+    axis.text.y = element_text(size = 10, family = "Times New Roman"),
+    axis.title.x = element_text(size = 15, family = "Times New Roman"),
+    axis.title.y = element_text(size = 15, family = "Times New Roman"),
+    plot.title = element_text(size = 18, family = "Times New Roman", hjust = 0.5),
+    legend.text = element_text(family = "Times New Roman"),
+    legend.title = element_text(family = "Times New Roman")
+  ) +
+  scale_y_continuous(limits = c(0, NA))
+```
+
+```{r robustness_random_walks}
+robust_net_sep20_full <- create_net_robust(net_clicksep20)
+robust_net_oct20_full <- create_net_robust(net_clickoct20)
+robust_net_nov20_full <- create_net_robust(net_clicknov20)
+robust_net_dec20_full <- create_net_robust(net_clickdec20)
+robust_net_jan21_full <- create_net_robust(net_clickjan21)
+robust_net_feb21_full <- create_net_robust(net_clickfeb21)
+
+# run random walks
+results_robust_sep20_dem <- analyze_party_walk(robust_net_sep20_full, "Democrat", page_names_democrat_sep, steps = 5, iterations = 50)
+
+results_robust_sep20_rep <- analyze_party_walk(robust_net_sep20_full, "Republican", page_names_republican_sep, steps = 5, iterations = 50)
+
+results_robust_oct20_dem <- analyze_party_walk(robust_net_oct20_full, "Democrat", page_names_democrat_oct, steps = 5, iterations = 50)
+
+results_robust_oct20_rep <- analyze_party_walk(robust_net_oct20_full, "Republican", page_names_republican_oct, steps = 5, iterations = 50)
+
+results_robust_nov20_dem <- analyze_party_walk(robust_net_nov20_full, "Democrat", page_names_democrat, steps = 5, iterations = 50)
+
+results_robust_nov20_rep <- analyze_party_walk(robust_net_nov20_full, "Republican", page_names_republican, steps = 5, iterations = 50)
+
+results_robust_dec20_dem <- analyze_party_walk(robust_net_dec20_full, "Democrat", page_names_democrat_dec, steps = 5, iterations = 50)
+
+results_robust_dec20_rep <- analyze_party_walk(robust_net_dec20_full, "Republican", page_names_republican_dec, steps = 5, iterations = 50)
+
+results_robust_jan21_dem <- analyze_party_walk(robust_net_jan21_full, "Democrat", page_names_democrat_jan, steps = 5, iterations = 50)
+
+results_robust_jan21_rep <- analyze_party_walk(robust_net_jan21_full, "Republican", page_names_republican_jan, steps = 5, iterations = 50)
+
+results_robust_feb21_dem <- analyze_party_walk(robust_net_feb21_full, "Democrat", page_names_democrat_feb, steps = 5, iterations = 50)
+
+results_robust_feb21_rep <- analyze_party_walk(robust_net_feb21_full, "Republican", page_names_republican_feb, steps = 5, iterations = 50)
+
+exposure_robust_sep20 <- calculate_exposure(results_robust_sep20_dem)
+
+exposure_robust_sep20_rep <- calculate_exposure(results_robust_sep20_rep)
+
+exposure_robust_oct20 <- calculate_exposure(results_robust_oct20_dem)
+
+exposure_robust_oct20_rep <- calculate_exposure(results_robust_oct20_rep)
+
+exposure_robust_nov20 <- calculate_exposure(results_robust_nov20_dem)
+
+exposure_robust_nov20_rep <- calculate_exposure(results_robust_nov20_rep)
+
+exposure_robust_dec20 <- calculate_exposure(results_robust_dec20_dem)
+
+exposure_robust_dec20_rep <- calculate_exposure(results_robust_dec20_rep)
+
+exposure_robust_jan21 <- calculate_exposure(results_robust_jan21_dem)
+
+exposure_robust_jan21_rep <- calculate_exposure(results_robust_jan21_rep)
+
+exposure_robust_feb21 <- calculate_exposure(results_robust_feb21_dem)
+
+exposure_robust_feb21_rep <- calculate_exposure(results_robust_feb21_rep)
+
+exposure_robust_data <- data.frame(
+  month = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"),
+  Democrat = c(exposure_robust_sep20, exposure_robust_oct20, exposure_robust_nov20, exposure_robust_dec20, exposure_robust_jan21, exposure_robust_feb21),
+  Republican = c(exposure_robust_sep20_rep, exposure_robust_oct20_rep, exposure_robust_nov20_rep, exposure_robust_dec20_rep, exposure_robust_jan21_rep, exposure_robust_feb21_rep)
+)
+
+exposure_robust_data$month <- factor(exposure_robust_data$month, levels = c("September 2020", "October 2020", "November 2020", "December 2020", "January 2021", "February 2021"))
+
+exposure_robust_data_long <- pivot_longer(exposure_robust_data, cols = c(Democrat, Republican), names_to = "variable", values_to = "value")
+
+exposure_robust_data_long$variable <- factor(exposure_robust_data_long$variable, levels = c("Democrat", "Republican"))
+
+custom_colors <- c("Democrat" = "dodgerblue", "Republican" = "red")
+
+barplot_robust <- ggplot(exposure_robust_data_long, aes(x = month, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Figure 6. Exposure to Diverse Information by Party in Robust Networks",
+    x = "Month",
+    y = "Exposure to Diverse Information",
+    fill = "Party"
+  ) +
+  scale_fill_manual(values = custom_colors) +
+  theme_minimal() +
+  theme(
+    text = element_text(family = "Times New Roman"),
+    plot.title = element_text(size = 18, family = "Times New Roman", hjust = 0.5),
+    axis.title.x = element_text(size = 15, family = "Times New Roman"),
+    axis.title.y = element_text(size = 15, family = "Times New Roman"),
+    legend.text = element_text(size = 15, family = "Times New Roman"),
+    legend.title = element_text(size = 15, family = "Times New Roman")
+  )
+
+barplot_robust
 ```
 
