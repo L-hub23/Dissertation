@@ -579,7 +579,7 @@ net_clicknov21_filtered <- delete_vertices(
 ```
 
 ```{r number_of_edges}
-# create mixing matrices for all months
+# Create mixing matrices for all months
 mixing_matrix_nov19 <- mixingm(net_clicknov19_filtered, "party")
 mixing_matrix_dec19 <- mixingm(net_clickdec19_filtered, "party")
 mixing_matrix_jan20 <- mixingm(net_clickjan20_filtered, "party")
@@ -606,8 +606,10 @@ mixing_matrix_sep21 <- mixingm(net_clicksep21_filtered, "party")
 mixing_matrix_oct21 <- mixingm(net_clickoct21_filtered, "party")
 mixing_matrix_nov21 <- mixingm(net_clicknov21_filtered, "party")
 
+# Combine the mixing matrices into a list
 matrices_list <- list(November_19 = mixing_matrix_nov19, December_19 = mixing_matrix_dec19, January_20 = mixing_matrix_jan20, February_20 = mixing_matrix_feb20, March_20 = mixing_matrix_mar20, April_20 = mixing_matrix_apr20, May_20 = mixing_matrix_may20, June_20 = mixing_matrix_jun20, July_20 = mixing_matrix_jul20, August_20 = mixing_matrix_aug20, September_20 = mixing_matrix_sep20, October_20 = mixing_matrix_oct20, November_20 = mixing_matrix_nov20, December_20 = mixing_matrix_dec20, January_21 = mixing_matrix_jan21, February_21 = mixing_matrix_feb21, March_21 = mixing_matrix_mar21, April_21 = mixing_matrix_apr21, May_21 = mixing_matrix_may21, June_21 = mixing_matrix_jun21, July_21 = mixing_matrix_jul21, August_21 = mixing_matrix_aug21, September_21 = mixing_matrix_sep21, October_21 = mixing_matrix_oct21, November_21 = mixing_matrix_nov21)
 
+# Definen function to extract counts from mixing matrices
 extract_counts <- function(matrix, month) {
   data.frame(
     Month = month,
@@ -618,20 +620,23 @@ extract_counts <- function(matrix, month) {
   )
 }
 
-# Apply the function to each matrix and combine the results into a dataframe
+# Turn the results into a dataframe
 results <- bind_rows(lapply(names(matrices_list), function(month) {
   extract_counts(matrices_list[[month]], month)
 }))
 
+# Factorise month
 results$Month <- factor(results$Month, levels = c(
   "November_19", "December_19",
   "January_20", "February_20", "March_20", "April_20", "May_20", "June_20", "July_20", "August_20", "September_20", "October_20", "November_20", "December_20",
   "January_21", "February_21", "March_21", "April_21", "May_21", "June_21", "July_21", "August_21", "September_21", "October_21", "November_21"
 ))
 
+# Pivot long
 results_long <- results %>%
   gather(key = "Interaction", value = "Count", -Month)
 
+# Factorise the type of link
 results_long$Interaction <- factor(results_long$Interaction, levels = c(
   "Democrat.to.Democrat",
   "Democrat.to.Republican",
@@ -639,6 +644,7 @@ results_long$Interaction <- factor(results_long$Interaction, levels = c(
   "Republican.to.Republican"
 ))
 
+# Set custom y breaks, x-axis labels, legend labels and colors
 y_breaks <- pretty(results_long$Count, n = 5)
 
 custom_labels <- c("November '19", "December '19",
@@ -654,6 +660,7 @@ custom_colors <- c(
   "Republican.to.Republican" = "red"
 )
 
+# Plot the number of edges differentiated by type
 ggplot(results_long, aes(x = Month, y = Count, color = Interaction, group = Interaction)) +
   geom_line() +
   geom_point(size = 1) +
@@ -680,7 +687,6 @@ ggplot(results_long, aes(x = Month, y = Count, color = Interaction, group = Inte
   )
 ```
 
-
 ```{r modularity}
 # Define a function to calculate modularity for a given network and party membership
 calculate_modularity <- function(network, party_levels = c("Democrat", "Republican")) {
@@ -690,7 +696,7 @@ calculate_modularity <- function(network, party_levels = c("Democrat", "Republic
   return(mod)
 }
 
-# Calculate modularity for each robust network version
+# Create data frame and calculate modularity for each filtered network
 modularity_scores <- data.frame(
   Month = c(
     "November '19", "December '19", "January '20", "February '20", "March '20", "April '20", "May '20", "June '20",
@@ -711,6 +717,7 @@ modularity_scores <- data.frame(
   )
 )
 
+# Factorise month
 modularity_scores$Month <- factor(modularity_scores$Month, levels = modularity_scores$Month)
 average_modularity <- mean(modularity_scores$Modularity, na.rm = TRUE)
 
@@ -740,23 +747,24 @@ ggplot(modularity_scores, aes(x = Month, y = Modularity)) +
 
 ```{r boundary_polarisation}
 # Define the function to compute Spearman correlation of weighted degrees and cross-boundary connections
-
 calculate_spearman_correlation <- function(graph) {
   party_labels <- V(graph)$party
   
   community <- party_labels
   
   # Calculate the degrees of each node in the graph
-  degrees <- degrees <- strength(
+  degrees <- strength(
     graph, mode = "out", weights = E(graph)$weight)
   
   # Define a nested function to compute cross-boundary connections
   cross_boundary_connections <- function(graph, community) {
     sapply(V(graph), function(node) {
-      neighbors <- neighbors(graph, node, mode = "out")
+      neighbors <- neighbors(graph, node, mode = "out") # Find all outgoing neighbors
+      # Identify the edges connecting the current node to its neighbors:
       edge_ids <- E(graph)[.from(node) & .to(neighbors)]
-      # Sum the instances where neighboring nodes are in different communities
-      sum(E(graph)$weight[edge_ids][community[neighbors] != community[node]])
+      # Sum the weights of links where neighboring nodes are in different communities:
+      sum(E(graph)$weight[
+        edge_ids][community[neighbors] != community[node]])
     })
   }
   
@@ -772,20 +780,24 @@ calculate_spearman_correlation <- function(graph) {
   # Calculate the Spearman correlation coefficient between the two ranks
   rho <- cor(rank_r, rank_rb, method = "spearman")
   
-  # Function to calculate polarization for a specific party
+  # Define function to calculate polarization for a specific party
   calculate_party_polarization <- function(party) {
+    # Get the indices of nodes from the specified party
     party_nodes <- which(party_labels == party)
     if (length(party_nodes) < 2) {
-      return(NA) # Not enough nodes to calculate correlation
+      return(NA)
     }
-    
-    party_degrees <- degrees[party_nodes]
+    # Calculate the weighted degrees for the identified nodes:
+    party_degrees <- strength(
+      graph, vids = party_nodes, weights = E(graph)$weight)
+    # Calculate the cross-boundary connections for the identified nodes:
     party_db <- db[party_nodes]
-    
+    # Rank both measurements in decreasing order:
     party_rank_r <- rank(-party_degrees)
     party_rank_rb <- rank(-party_db)
-    
-    cor(party_rank_r, party_rank_rb, method = "spearman")
+    # Calculate the Spearman correlation:
+    rho_party <- cor(party_rank_r, party_rank_rb, method = "spearman")
+    return(rho_party)
   }
   
   # Calculate polarization for Republicans
@@ -803,110 +815,141 @@ calculate_spearman_correlation <- function(graph) {
   ))
 }
 
+# Calculate boundary polarisation for each month
 bp_nov19 <- calculate_spearman_correlation(net_clicknov19_filtered)
-
 bp_dec19 <- calculate_spearman_correlation(net_clickdec19_filtered)
-
 bp_jan20 <- calculate_spearman_correlation(net_clickjan20_filtered)
-
 bp_feb20 <- calculate_spearman_correlation(net_clickfeb20_filtered)
-
 bp_mar20 <- calculate_spearman_correlation(net_clickmar20_filtered)
-
 bp_apr20 <- calculate_spearman_correlation(net_clickapr20_filtered)
-
 bp_may20 <- calculate_spearman_correlation(net_clickmay20_filtered)
-
 bp_jun20 <- calculate_spearman_correlation(net_clickjun20_filtered)
-
 bp_jul20 <- calculate_spearman_correlation(net_clickjul20_filtered)
-
 bp_aug20 <- calculate_spearman_correlation(net_clickaug20_filtered)
-
 bp_sep20 <- calculate_spearman_correlation(net_clicksep20_filtered)
-
 bp_oct20 <- calculate_spearman_correlation(net_clickoct20_filtered)
-
 bp_nov20 <- calculate_spearman_correlation(net_clicknov20_filtered)
-
 bp_dec20 <- calculate_spearman_correlation(net_clickdec20_filtered)
-
 bp_jan21 <- calculate_spearman_correlation(net_clickjan21_filtered)
-
 bp_feb21 <- calculate_spearman_correlation(net_clickfeb21_filtered)
-
 bp_mar21 <- calculate_spearman_correlation(net_clickmar21_filtered)
-
 bp_apr21 <- calculate_spearman_correlation(net_clickapr21_filtered)
-
 bp_may21 <- calculate_spearman_correlation(net_clickmay21_filtered)
-
 bp_jun21 <- calculate_spearman_correlation(net_clickjun21_filtered)
-
 bp_jul21 <- calculate_spearman_correlation(net_clickjul21_filtered)
-
 bp_aug21 <- calculate_spearman_correlation(net_clickaug21_filtered)
-
 bp_sep21 <- calculate_spearman_correlation(net_clicksep21_filtered)
-
 bp_oct21 <- calculate_spearman_correlation(net_clickoct21_filtered)
-
 bp_nov21 <- calculate_spearman_correlation(net_clicknov21_filtered)
 
 # generate random networks for each month
-random_net_nov19 <- sample_degseq(out.deg = degree(net_clicknov19_filtered, mode='out'), in.deg = degree(net_clicknov19_filtered, mode='in'), method = "simple")
+random_net_nov19 <- sample_degseq(out.deg = degree(
+  net_clicknov19_filtered, mode='out'), in.deg = degree(
+    net_clicknov19_filtered, mode='in'), method = "simple")
 
-random_net_dec19 <- sample_degseq(out.deg = degree(net_clickdec19_filtered, mode='out'), in.deg = degree(net_clickdec19_filtered, mode='in'), method = "simple")
+random_net_dec19 <- sample_degseq(out.deg = degree(
+  net_clickdec19_filtered, mode='out'), in.deg = degree(
+    net_clickdec19_filtered, mode='in'), method = "simple")
 
-random_net_jan20 <- sample_degseq(out.deg = degree(net_clickjan20_filtered, mode='out'), in.deg = degree(net_clickjan20_filtered, mode='in'), method = "simple")
+random_net_jan20 <- sample_degseq(out.deg = degree(
+  net_clickjan20_filtered, mode='out'), in.deg = degree(
+    net_clickjan20_filtered, mode='in'), method = "simple")
 
-random_net_feb20 <- sample_degseq(out.deg = degree(net_clickfeb20_filtered, mode='out'), in.deg = degree(net_clickfeb20_filtered, mode='in'), method = "simple")
+random_net_feb20 <- sample_degseq(out.deg = degree(
+  net_clickfeb20_filtered, mode='out'), in.deg = degree(
+    net_clickfeb20_filtered, mode='in'), method = "simple")
 
-random_net_mar20 <- sample_degseq(out.deg = degree(net_clickmar20_filtered, mode='out'), in.deg = degree(net_clickmar20_filtered, mode='in'), method = "simple")
+random_net_mar20 <- sample_degseq(out.deg = degree(
+  net_clickmar20_filtered, mode='out'), in.deg = degree(
+    net_clickmar20_filtered, mode='in'), method = "simple")
 
-random_net_apr20 <- sample_degseq(out.deg = degree(net_clickapr20_filtered, mode='out'), in.deg = degree(net_clickapr20_filtered, mode='in'), method = "simple")
+random_net_apr20 <- sample_degseq(out.deg = degree(
+  net_clickapr20_filtered, mode='out'), in.deg = degree(
+    net_clickapr20_filtered, mode='in'), method = "simple")
 
-random_net_may20 <- sample_degseq(out.deg = degree(net_clickmay20_filtered, mode='out'), in.deg = degree(net_clickmay20_filtered, mode='in'), method = "simple")
+random_net_may20 <- sample_degseq(out.deg = degree(
+  net_clickmay20_filtered, mode='out'), in.deg = degree(
+    net_clickmay20_filtered, mode='in'), method = "simple")
 
-random_net_jun20 <- sample_degseq(out.deg = degree(net_clickjun20_filtered, mode='out'), in.deg = degree(net_clickjun20_filtered, mode='in'), method = "simple")
+random_net_jun20 <- sample_degseq(out.deg = degree(
+  net_clickjun20_filtered, mode='out'), in.deg = degree(
+    net_clickjun20_filtered, mode='in'), method = "simple")
 
-random_net_jul20 <- sample_degseq(out.deg = degree(net_clickjul20_filtered, mode='out'), in.deg = degree(net_clickjul20_filtered, mode='in'), method = "simple")
+random_net_jul20 <- sample_degseq(out.deg = degree(
+  net_clickjul20_filtered, mode='out'), in.deg = degree(
+    net_clickjul20_filtered, mode='in'), method = "simple")
 
-random_net_aug20 <- sample_degseq(out.deg = degree(net_clickaug20_filtered, mode='out'), in.deg = degree(net_clickaug20_filtered, mode='in'), method = "simple")
+random_net_aug20 <- sample_degseq(out.deg = degree(
+  net_clickaug20_filtered, mode='out'), in.deg = degree(
+    net_clickaug20_filtered, mode='in'), method = "simple")
 
-random_net_sep20 <- sample_degseq(out.deg = degree(net_clicksep20_filtered, mode='out'), in.deg = degree(net_clicksep20_filtered, mode='in'), method = "simple")
+random_net_sep20 <- sample_degseq(out.deg = degree(
+  net_clicksep20_filtered, mode='out'), in.deg = degree(
+    net_clicksep20_filtered, mode='in'), method = "simple")
 
-random_net_oct20 <- sample_degseq(out.deg = degree(net_clickoct20_filtered, mode='out'), in.deg = degree(net_clickoct20_filtered, mode='in'), method = "simple")
+random_net_oct20 <- sample_degseq(out.deg = degree(
+  net_clickoct20_filtered, mode='out'), in.deg = degree(
+    net_clickoct20_filtered, mode='in'), method = "simple")
 
-random_net_nov20 <- sample_degseq(out.deg = degree(net_clicknov20_filtered, mode='out'), in.deg = degree(net_clicknov20_filtered, mode='in'), method = "simple")
+random_net_nov20 <- sample_degseq(out.deg = degree(
+  net_clicknov20_filtered, mode='out'), in.deg = degree(
+    net_clicknov20_filtered, mode='in'), method = "simple")
 
-random_net_dec20 <- sample_degseq(out.deg = degree(net_clickdec20_filtered, mode='out'), in.deg = degree(net_clickdec20_filtered, mode='in'), method = "simple")
+random_net_dec20 <- sample_degseq(out.deg = degree(
+  net_clickdec20_filtered, mode='out'), in.deg = degree(
+    net_clickdec20_filtered, mode='in'), method = "simple")
 
-random_net_jan21 <- sample_degseq(out.deg = degree(net_clickjan21_filtered, mode='out'), in.deg = degree(net_clickjan21_filtered, mode='in'), method = "simple")
+random_net_jan21 <- sample_degseq(out.deg = degree(
+  net_clickjan21_filtered, mode='out'), in.deg = degree(
+    net_clickjan21_filtered, mode='in'), method = "simple")
 
-random_net_feb21 <- sample_degseq(out.deg = degree(net_clickfeb21_filtered, mode='out'), in.deg = degree(net_clickfeb21_filtered, mode='in'), method = "simple")
+random_net_feb21 <- sample_degseq(out.deg = degree(
+  net_clickfeb21_filtered, mode='out'), in.deg = degree(
+    net_clickfeb21_filtered, mode='in'), method = "simple")
 
-random_net_mar21 <- sample_degseq(out.deg = degree(net_clickmar21_filtered, mode='out'), in.deg = degree(net_clickmar21_filtered, mode='in'), method = "simple")
+random_net_mar21 <- sample_degseq(out.deg = degree(
+  net_clickmar21_filtered, mode='out'), in.deg = degree(
+    net_clickmar21_filtered, mode='in'), method = "simple")
 
-random_net_apr21 <- sample_degseq(out.deg = degree(net_clickapr21_filtered, mode='out'), in.deg = degree(net_clickapr21_filtered, mode='in'), method = "simple")
+random_net_apr21 <- sample_degseq(out.deg = degree(
+  net_clickapr21_filtered, mode='out'), in.deg = degree(
+    net_clickapr21_filtered, mode='in'), method = "simple")
 
-random_net_may21 <- sample_degseq(out.deg = degree(net_clickmay21_filtered, mode='out'), in.deg = degree(net_clickmay21_filtered, mode='in'), method = "simple")
+random_net_may21 <- sample_degseq(out.deg = degree(
+  net_clickmay21_filtered, mode='out'), in.deg = degree(
+    net_clickmay21_filtered, mode='in'), method = "simple")
 
-random_net_jun21 <- sample_degseq(out.deg = degree(net_clickjun21_filtered, mode='out'), in.deg = degree(net_clickjun21_filtered, mode='in'), method = "simple")
+random_net_jun21 <- sample_degseq(out.deg = degree(
+  net_clickjun21_filtered, mode='out'), in.deg = degree(
+    net_clickjun21_filtered, mode='in'), method = "simple")
 
-random_net_jul21 <- sample_degseq(out.deg = degree(net_clickjul21_filtered, mode='out'), in.deg = degree(net_clickjul21_filtered, mode='in'), method = "simple")
+random_net_jul21 <- sample_degseq(out.deg = degree(
+  net_clickjul21_filtered, mode='out'), in.deg = degree(
+    net_clickjul21_filtered, mode='in'), method = "simple")
 
-random_net_aug21 <- sample_degseq(out.deg = degree(net_clickaug21_filtered, mode='out'), in.deg = degree(net_clickaug21_filtered, mode='in'), method = "simple")
+random_net_aug21 <- sample_degseq(out.deg = degree(
+  net_clickaug21_filtered, mode='out'), in.deg = degree(
+    net_clickaug21_filtered, mode='in'), method = "simple")
 
-random_net_sep21 <- sample_degseq(out.deg = degree(net_clicksep21_filtered, mode='out'), in.deg = degree(net_clicksep21_filtered, mode='in'), method = "simple")
+random_net_sep21 <- sample_degseq(out.deg = degree(
+  net_clicksep21_filtered, mode='out'), in.deg = degree(
+    net_clicksep21_filtered, mode='in'), method = "simple")
 
-random_net_oct21 <- sample_degseq(out.deg = degree(net_clickoct21_filtered, mode='out'), in.deg = degree(net_clickoct21_filtered, mode='in'), method = "simple")
+random_net_oct21 <- sample_degseq(out.deg = degree(
+  net_clickoct21_filtered, mode='out'), in.deg = degree(
+    net_clickoct21_filtered, mode='in'), method = "simple")
 
-random_net_nov21 <- sample_degseq(out.deg = degree(net_clicknov21_filtered, mode='out'), in.deg = degree(net_clicknov21_filtered, mode='in'), method = "simple")
+random_net_nov21 <- sample_degseq(out.deg = degree(
+  net_clicknov21_filtered, mode='out'), in.deg = degree(
+    net_clicknov21_filtered, mode='in'), method = "simple")
 
+# Define a function to assign party and weight attributes
+# to random networks and calculate the boundary polarisation
 assign_attributes_and_calculate_correlation <- function(random_net, original_net, correlation = TRUE) {
   
+  # Get the name of the random network
   random_net_name <- deparse(substitute(random_net))
+  
   # Assign the 'party' attribute from the original network to the random network
   party_attr <- vertex_attr(original_net, name = "party")
   random_net <- set_vertex_attr(random_net, name = "party", value = party_attr)
@@ -915,9 +958,10 @@ assign_attributes_and_calculate_correlation <- function(random_net, original_net
   weight_attr <- edge_attr(original_net, name = "weight")
   random_net <- set_edge_attr(random_net, name = "weight", value = weight_attr)
   
-  
+  # Save the new random network to the old name
   assign(random_net_name, random_net, envir = .GlobalEnv)
   
+  # If desired, also calculate the boundary polarisation
   if (correlation == TRUE) {
    output <- calculate_spearman_correlation(random_net) 
    return(output)
@@ -963,6 +1007,7 @@ boundary_polarisation_scores <- data.frame(
   Random_Democrat = c(bp_random_nov19[3]$democrat, bp_random_dec19[3]$democrat, bp_random_jan20[3]$democrat, bp_random_feb20[3]$democrat, bp_random_mar20[3]$democrat, bp_random_apr20[3]$democrat, bp_random_may20[3]$democrat, bp_random_jun20[3]$democrat, bp_random_jul20[3]$democrat, bp_random_aug20[3]$democrat, bp_random_sep20[3]$democrat, bp_random_oct20[3]$democrat, bp_random_nov20[3]$democrat, bp_random_dec20[3]$democrat, bp_random_jan21[3]$democrat, bp_random_feb21[3]$democrat, bp_random_mar21[3]$democrat, bp_random_apr21[3]$democrat, bp_random_may21[3]$democrat, bp_random_jun21[3]$democrat, bp_random_jul21[3]$democrat, bp_random_aug21[3]$democrat, bp_random_sep21[3]$democrat, bp_random_oct21[3]$democrat, bp_random_nov21[3]$democrat)
 )
 
+# Factorise month
 boundary_polarisation_scores$Month <- factor(
   boundary_polarisation_scores$Month,
   levels = c("November '19", "December '19", "January '20", "February '20", "March '20", "April '20", "May '20", "June '20", "July '20", "August '20", "September '20", "October '20", "November '20", "December '20", "January '21", "February '21", "March '21", "April '21", "May '21", "June '21", "July '21", "August '21", "September '21", "October '21", "November '21")
@@ -971,6 +1016,7 @@ boundary_polarisation_scores$Month <- factor(
 # Define custom colors
 custom_colors <- c("Random Networks" = "darkorange", "Empirical Networks" = "purple")
 
+# Plot the results
 ggplot(boundary_polarisation_scores, aes(x = Month)) +
   geom_line(aes(y = Random, color = "Random Networks", group = 1)) +  # Color and label for random networks
   geom_line(aes(y = Boundary_Polarisation, color = "Empirical Networks", group = 2)) +  # Color and label for empirical networks
@@ -996,7 +1042,7 @@ ggplot(boundary_polarisation_scores, aes(x = Month)) +
 ```
 
 ```{r bp_both_parties}
-# Reshape the data to long format
+# Reshape the data frame from previous chunk for plotting
 boundary_polarisation_long <- boundary_polarisation_scores %>%
   pivot_longer(cols = c(Random, Boundary_Polarisation, Republican, Democrat),
                names_to = "Metric",
@@ -1009,7 +1055,7 @@ custom_colors <- c("Random" = "darkorange",
                    "Republican" = "red",
                    "Democrat" = "blue")
 
-# Plot
+# Plot the results with differentiation by party
 ggplot(boundary_polarisation_long, aes(x = Month, y = Value, color = Metric, group = Metric)) +
   geom_line(size = 1) +  # Line for each Metric
   geom_point(size = 2) +  # Points for each Metric
@@ -1044,9 +1090,6 @@ load("data/click_networks_rw2.RData")
 ```{r define_pv_function}
 # Define a function to fetch the total page views for a given article
 page_view_month <- function(article_name, start, end) {
-  # Get the name of the article
-  # article_name <- V(graph)$name[start]
-  
   # Construct the URL for the API request
   url <- paste0(
     "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia.org/all-access/all-agents/",
@@ -1067,48 +1110,87 @@ page_view_month <- function(article_name, start, end) {
     # Extract views from each day and sum them
     total_views <- sum(sapply(content_data$items, function(item) item$views))
     return(total_views)
-  } else {
+  } else { # If the request was not successful, return NA
     return(NA)
   }
 }
 
+# Pages which appeared in the top viewed pages but were deemed irrelevant for Democrats
 pages_to_filter <- c(
-  "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady", "john_wane_gacy", "ken_jennings", "beyoncé", "stephen_king", "jennifer_garner", "gilian_anderson", "jodie_foster", "caitlyn_jenner", "anthony_fauci", "space_shuttle_columbia_disaster", "taxi_driver", "buzz_aldrin", "ted_bundy", "wyatt_earp", "gadsden_flag", "vermin_supreme", "alec_baldwin", "jennifer_garner", "ku_klux_klan", "stephen_king", "columbine_high_school_massacre", "jon_bon_jovi", "monica_lewinsky", "guantanamo_bay_detention_camp", "warren_buffett", "2012_benghazi_attack", "jefferson_davis", "chicago_seven", "aretha_franklin", "ken_jennings", "henry_fonda", "2004_united_states_presidential_election", "timeline_of_russian_interference_in_the_2016_united_states_elections", "1984_united_states_presidential_election", "1988_united_states_presidential_election", "1980_united_states_presidential_election", "1976_united_states_presidential_election", "1964_united_states_presidential_election", "faithless_electors_in_the_2016_united_states_presidential_election", "1860_united_states_presidential_election", "1864_united_states_presidential_election", "1972_united_states_presidential_election", "1936_united_states_presidential_election", "1944_united_states_presidential_election", "1940_united_states_presidential_election", "1932_united_states_presidential_election", "1928_united_states_presidential_election", "1920_united_states_presidential_election", "iraq_war", "gulf_war", "reform_party_of_the_united_states_of_america", "constitution_party_(united_states)", "seth_macfarlane", "rocky_de_la_fuente", "billy_ray_cyrus", "deepwater_horizon_oil_spill", "killing_of_osama_bin_laden", "john_wayne_gacy" 
+  "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic",
+  "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady",
+  "john_wane_gacy", "ken_jennings", "beyoncé", "stephen_king",
+  "jennifer_garner", "gilian_anderson", "jodie_foster", "caitlyn_jenner",
+  "anthony_fauci", "space_shuttle_columbia_disaster", "taxi_driver",
+  "buzz_aldrin", "ted_bundy", "wyatt_earp", "gadsden_flag", "vermin_supreme",
+  "alec_baldwin", "jennifer_garner", "ku_klux_klan", "stephen_king",
+  "columbine_high_school_massacre", "jon_bon_jovi", "monica_lewinsky",
+  "guantanamo_bay_detention_camp", "warren_buffett", "2012_benghazi_attack",
+  "jefferson_davis", "chicago_seven", "aretha_franklin", "ken_jennings",
+  "henry_fonda", "2004_united_states_presidential_election",
+  "timeline_of_russian_interference_in_the_2016_united_states_elections",
+  "1984_united_states_presidential_election", "1988_united_states_presidential_election",
+  "1980_united_states_presidential_election", "1976_united_states_presidential_election",
+  "1964_united_states_presidential_election", "faithless_electors_in_the_2016_united_states_presidential_election", "1860_united_states_presidential_election", "1864_united_states_presidential_election",
+  "1972_united_states_presidential_election", "1936_united_states_presidential_election",
+  "1944_united_states_presidential_election", "1940_united_states_presidential_election",
+  "1932_united_states_presidential_election", "1928_united_states_presidential_election",
+  "1920_united_states_presidential_election", "iraq_war", "gulf_war",
+  "reform_party_of_the_united_states_of_america", "constitution_party_(united_states)",
+  "seth_macfarlane", "rocky_de_la_fuente", "billy_ray_cyrus", "deepwater_horizon_oil_spill",
+  "killing_of_osama_bin_laden", "john_wayne_gacy" 
 )
 
+# Pages which appeared in the top viewed pages but were deemed irrelevant for Republicans
 pages_to_filter_rep <- c(
-  "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm", "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady", "john_wane_gacy", "ken_jennings", "beyoncé", "stephen_king", "jennifer_garner", "gilian_anderson", "jodie_foster", "caitlyn_jenner", "anthony_fauci", "space_shuttle_columbia_disaster", "taxi_driver", "buzz_aldrin", "ted_bundy", "wyatt_earp", "gadsden_flag", "vermin_supreme", "alec_baldwin", "jennifer_garner", "ku_klux_klan", "stephen_king", "columbine_high_school_massacre", "jon_bon_jovi", "monica_lewinsky", "guantanamo_bay_detention_camp", "warren_buffett", "2012_benghazi_attack", "jefferson_davis", "chicago_seven", "aretha_franklin", "ken_jennings", "henry_fonda", "2004_united_states_presidential_election", "timeline_of_russian_interference_in_the_2016_united_states_elections", "1984_united_states_presidential_election", "1988_united_states_presidential_election", "1980_united_states_presidential_election", "1976_united_states_presidential_election", "1964_united_states_presidential_election", "faithless_electors_in_the_2016_united_states_presidential_election", "1860_united_states_presidential_election", "1864_united_states_presidential_election", "1972_united_states_presidential_election", "1936_united_states_presidential_election", "1944_united_states_presidential_election", "1940_united_states_presidential_election", "1932_united_states_presidential_election", "1928_united_states_presidential_election", "1920_united_states_presidential_election", "iraq_war", "gulf_war", "hillary_clinton", "reform_party_of_the_united_states_of_america", "constitution_party_(united_states)", "space_shuttle_columbia_disaster"
+  "call_of_duty:_black_ops_cold_war", "borat_subsequent_moviefilm",
+  "joe_exotic", "stephen_colbert", "billie_eilish", "ken_burns", "tom_brady",
+  "john_wane_gacy", "ken_jennings", "beyoncé", "stephen_king", "jennifer_garner",
+  "gilian_anderson", "jodie_foster", "caitlyn_jenner", "anthony_fauci",
+  "space_shuttle_columbia_disaster", "taxi_driver", "buzz_aldrin", "ted_bundy",
+  "wyatt_earp", "gadsden_flag", "vermin_supreme", "alec_baldwin",
+  "jennifer_garner", "ku_klux_klan", "stephen_king", "columbine_high_school_massacre",
+  "jon_bon_jovi", "monica_lewinsky", "guantanamo_bay_detention_camp", "warren_buffett",
+  "2012_benghazi_attack", "jefferson_davis", "chicago_seven", "aretha_franklin",
+  "ken_jennings", "henry_fonda", "2004_united_states_presidential_election", "timeline_of_russian_interference_in_the_2016_united_states_elections",
+  "1984_united_states_presidential_election", "1988_united_states_presidential_election",
+  "1980_united_states_presidential_election", "1976_united_states_presidential_election",
+  "1964_united_states_presidential_election", "faithless_electors_in_the_2016_united_states_presidential_election", "1860_united_states_presidential_election", "1864_united_states_presidential_election",
+  "1972_united_states_presidential_election", "1936_united_states_presidential_election",
+  "1944_united_states_presidential_election", "1940_united_states_presidential_election",
+  "1932_united_states_presidential_election", "1928_united_states_presidential_election",
+  "1920_united_states_presidential_election", "iraq_war", "gulf_war", "hillary_clinton", "reform_party_of_the_united_states_of_america", "constitution_party_(united_states)",
+  "space_shuttle_columbia_disaster"
 )
 ```
 
 ```{r page_views_sep}
-# loop through all republican pages
+# Loop through all republican pages
 page_views_republican_sep <- list()
 for (i in republican_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_republican_sep[[i]] <- page_view_month(i, "20200901", "20200930")
   if (is.na(page_views_republican_sep[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
-#loop through all democrat pages
+# Loop through all democrat pages
 page_views_democrat_sep <- list()
 for (i in democrat_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_democrat_sep[[i]] <- page_view_month(i, "20200901", "20200930")
   if (is.na(page_views_democrat_sep[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
 updated_rep_pv_list_sep <- list()
-
-#iterate through the original list
+# Iterate through the original list to standardise all page names
 for (original_name in names(page_views_republican_sep)) {
   # Retrieve the value associated with the original name
   page_views <- page_views_republican_sep[[original_name]]
@@ -1122,8 +1204,8 @@ for (original_name in names(page_views_republican_sep)) {
   updated_rep_pv_list_sep[[standardized_name]] <- page_views
 }
 
+# Same for democratic pages
 updated_dem_pv_list_sep <- list()
-
 for (original_name in names(page_views_democrat_sep)) {
   # Retrieve the value associated with the original name
   page_views <- page_views_democrat_sep[[original_name]]
@@ -1137,58 +1219,61 @@ for (original_name in names(page_views_democrat_sep)) {
   updated_dem_pv_list_sep[[standardized_name]] <- page_views
 }
 
+# Get page names from the network vertices
 network_names_sep <- V(net_clicksep20_filtered)$name
 
-matched_names_rep_sep <- network_names_sep[network_names_sep %in% names(updated_rep_pv_list_sep)]
+# Match the names of the network vertices with the page views
+matched_names_rep_sep <- network_names_sep[
+  network_names_sep %in% names(updated_rep_pv_list_sep)]
 page_views_republican_filtered_sep <- updated_rep_pv_list_sep[matched_names_rep_sep]
-
-matched_names_dem_sep <- network_names_sep[network_names_sep %in% names(updated_dem_pv_list_sep)]
+matched_names_dem_sep <- network_names_sep[
+  network_names_sep %in% names(updated_dem_pv_list_sep)]
 page_views_democrat_filtered_sep <- updated_dem_pv_list_sep[matched_names_dem_sep]
 
-# order by descending page views
-page_views_republican_filtered_sep <- page_views_republican_filtered_sep[order(unlist(page_views_republican_filtered_sep), decreasing = TRUE)]
+# Order by descending page views
+page_views_republican_filtered_sep <- page_views_republican_filtered_sep[
+  order(unlist(page_views_republican_filtered_sep), decreasing = TRUE)]
+page_views_democrat_filtered_sep <- page_views_democrat_filtered_sep[
+  order(unlist(page_views_democrat_filtered_sep), decreasing = TRUE)]
 
-page_views_democrat_filtered_sep <- page_views_democrat_filtered_sep[order(unlist(page_views_democrat_filtered_sep), decreasing = TRUE)]
+# Remove pages that are deemed irrelevant
+page_views_democrat_filtered_sep <- page_views_democrat_filtered_sep[
+  !(names(page_views_democrat_filtered_sep) %in% pages_to_filter)]
+page_views_republican_filtered_sep <- page_views_republican_filtered_sep[
+  !(names(page_views_republican_filtered_sep) %in% pages_to_filter_rep)]
 
-page_views_democrat_filtered_sep <- page_views_democrat_filtered_sep[!(names(page_views_democrat_filtered_sep) %in% pages_to_filter)]
-
-page_views_republican_filtered_sep <- page_views_republican_filtered_sep[!(names(page_views_republican_filtered_sep) %in% pages_to_filter_rep)]
-
-# extract page names of the first 100 pages
+# Extract page names of the first 100 pages
 page_names_republican_sep <- names(page_views_republican_filtered_sep)[1:100]
 page_names_democrat_sep <- names(page_views_democrat_filtered_sep)[1:100]
 ```
 
-
-
 ```{r page_views_oct}
-# loop through all republican pages
+# Loop through all republican pages
 page_views_republican_oct <- list()
 for (i in republican_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_republican_oct[[i]] <- page_view_month(i, "20201001", "20201031")
   if (is.na(page_views_republican_oct[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
-# loop through all democrat pages
+# Loop through all democrat pages
 page_views_democrat_oct <- list()
 for (i in democrat_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_democrat_oct[[i]] <- page_view_month(i, "20201001", "20201031")
   if (is.na(page_views_democrat_oct[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
 updated_rep_pv_list_oct <- list()
-
-# Iterate through the original list
+# Iterate through the original list to standardise all page names
 for (original_name in names(page_views_republican_oct)) {
   # Retrieve the value associated with the original name
   page_views <- page_views_republican_oct[[original_name]]
@@ -1202,17 +1287,16 @@ for (original_name in names(page_views_republican_oct)) {
   updated_rep_pv_list_oct[[standardized_name]] <- page_views
 }
 
+# Same for democratic pages
 updated_dem_pv_list_oct <- list()
-
+# Iterate through the original list to standardise all page names
 for (original_name in names(page_views_democrat_oct)) {
   # Retrieve the value associated with the original name
   page_views <- page_views_democrat_oct[[original_name]]
-
   # Standardize the name
   standardized_name <- tolower(original_name)
   standardized_name <- gsub(" ", "_", standardized_name)
   standardized_name <- trimws(standardized_name)
-
   # Store the value under the new standardized name in the updated list
   updated_dem_pv_list_oct[[standardized_name]] <- page_views
 }
@@ -1220,36 +1304,40 @@ for (original_name in names(page_views_democrat_oct)) {
 # Extract names from the network vertices
 network_names_oct <- V(net_clickoct20_filtered)$name
 
-matched_names_rep_oct <- network_names_oct[network_names_oct %in% names(updated_rep_pv_list_oct)]
+# Match the names of the network vertices with the page views
+matched_names_rep_oct <- network_names_oct[
+  network_names_oct %in% names(updated_rep_pv_list_oct)]
 page_views_republican_filtered_oct <- updated_rep_pv_list_oct[matched_names_rep_oct]
-
-matched_names_dem_oct <- network_names_oct[network_names_oct %in% names(updated_dem_pv_list_oct)]
+matched_names_dem_oct <- network_names_oct[
+  network_names_oct %in% names(updated_dem_pv_list_oct)]
 page_views_democrat_filtered_oct <- updated_dem_pv_list_oct[matched_names_dem_oct]
 
-# order by descending page views
-page_views_republican_filtered_oct <- page_views_republican_filtered_oct[order(unlist(page_views_republican_filtered_oct), decreasing = TRUE)]
+# Order by descending page views
+page_views_republican_filtered_oct <- page_views_republican_filtered_oct[
+  order(unlist(page_views_republican_filtered_oct), decreasing = TRUE)]
+page_views_democrat_filtered_oct <- page_views_democrat_filtered_oct[
+  order(unlist(page_views_democrat_filtered_oct), decreasing = TRUE)]
 
-page_views_democrat_filtered_oct <- page_views_democrat_filtered_oct[order(unlist(page_views_democrat_filtered_oct), decreasing = TRUE)]
+# Filter out irrelevant pages
+page_views_democrat_filtered_oct <- page_views_democrat_filtered_oct[
+  !(names(page_views_democrat_filtered_oct) %in% pages_to_filter)]
+page_views_republican_filtered_oct <- page_views_republican_filtered_oct[
+  !(names(page_views_republican_filtered_oct) %in% pages_to_filter_rep)]
 
-page_views_democrat_filtered_oct <- page_views_democrat_filtered_oct[!(names(page_views_democrat_filtered_oct) %in% pages_to_filter)]
-
-page_views_republican_filtered_oct <- page_views_republican_filtered_oct[!(names(page_views_republican_filtered_oct) %in% pages_to_filter_rep)]
-
-# extract page names of the first 100 pages
+# Extract page names of the first 100 pages
 page_names_republican_oct <- names(page_views_republican_filtered_oct)[1:100]
 page_names_democrat_oct <- names(page_views_democrat_filtered_oct)[1:100]
 ```
 
-
 ```{r page_views_nov}
-# loop through all republican pages
+# Loop through all republican pages
 page_views_republican <- list()
 for (i in republican_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_republican[[i]] <- page_view_month(i, "20201101", "20201130")
   if (is.na(page_views_republican[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
@@ -1257,18 +1345,17 @@ for (i in republican_pages) {
 # loop through all democrat pages
 page_views_democrat <- list()
 for (i in democrat_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_democrat[[i]] <- page_view_month(i, "20201101", "20201130")
   if (is.na(page_views_democrat[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
 updated_rep_pv_list <- list()
-
-# Iterate through the original list
+# Iterate through the pages to standardise them
 for (original_name in names(page_views_republican)) {
   # Retrieve the value associated with the original name
   page_views <- page_views_republican[[original_name]]
@@ -1283,7 +1370,7 @@ for (original_name in names(page_views_republican)) {
 }
 
 updated_dem_pv_list <- list()
-
+# Iterate through the pages to standardise them
 for (original_name in names(page_views_democrat)) {
   # Retrieve the value associated with the original name
   page_views <- page_views_democrat[[original_name]]
@@ -1300,76 +1387,86 @@ for (original_name in names(page_views_democrat)) {
 # Extract names from the network vertices
 network_names <- V(net_clicknov20_filtered)$name
 
+# Match the names of the network vertices with the page views
 matched_names_rep <- network_names[network_names %in% names(updated_rep_pv_list)]
 page_views_republican_filtered <- updated_rep_pv_list[matched_names_rep]
-
 matched_names_dem <- network_names[network_names %in% names(updated_dem_pv_list)]
 page_views_democrat_filtered <- updated_dem_pv_list[matched_names_dem]
 
-# Filter out the specified pages
-page_views_democrat_filtered <- page_views_democrat_filtered[!(names(page_views_democrat_filtered) %in% pages_to_filter)]
+# Filter out the irrelevant pages
+page_views_democrat_filtered <- page_views_democrat_filtered[
+  !(names(page_views_democrat_filtered) %in% pages_to_filter)]
+page_views_republican_filtered <- page_views_republican_filtered[
+  !(names(page_views_republican_filtered) %in% pages_to_filter_rep)]
 
-page_views_republican_filtered <- page_views_republican_filtered[!(names(page_views_republican_filtered) %in% pages_to_filter_rep)]
-
-# order by descending page views
-page_views_republican_filtered <- page_views_republican_filtered[order(unlist(page_views_republican_filtered), decreasing = TRUE)]
-
-page_views_democrat_filtered <- page_views_democrat_filtered[order(unlist(page_views_democrat_filtered), decreasing = TRUE)]
+# Order by descending page views
+page_views_republican_filtered <- page_views_republican_filtered[
+  order(unlist(page_views_republican_filtered), decreasing = TRUE)]
+page_views_democrat_filtered <- page_views_democrat_filtered[
+  order(unlist(page_views_democrat_filtered), decreasing = TRUE)]
 
 # extract page names of the first 100 pages
 page_names_republican <- names(page_views_republican_filtered)[1:100]
 page_names_democrat <- names(page_views_democrat_filtered)[1:100]
 
-# visualise distribution of page views
+# Visualise distribution of page views
 page_views_df <- data.frame(
   Page = names(page_views_republican_filtered),
   Views = unlist(page_views_republican_filtered)
 )
 
-# remove pages with NA values
+# Remove pages with NA values
 page_views_df <- page_views_df[complete.cases(page_views_df), ]
 
-# order by views, ascending
+# Order by views, ascending
 page_views_df <- page_views_df[order(page_views_df$Views, decreasing = FALSE), ]
 
 ggplot(page_views_df, aes(x = Views)) +
-  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") +
+  geom_histogram(binwidth = 0.05, fill = "darkgrey", color = "black") +
   scale_x_log10() +
   theme_minimal() +
-  labs(title = "Distribution of Page Views",
-       x = "Page Views (log scale)",
-       y = "Frequency")
+  labs(title = "Figure B3. Distribution of Wikipedia Page Views in November 2020",
+       x = "Number of Page Views (log scale)",
+       y = "Frequency of Pages") +
+  theme(
+    # Align the title in the center
+    plot.title = element_text(size = 25, hjust = 0.5, family = "Times New Roman"),
+    # Set the size and font for axis titles
+    axis.title.x = element_text(size = 20, family = "Times New Roman"),
+    axis.title.y = element_text(size = 20, family = "Times New Roman"),
+    # Set the size and font for axis text
+    axis.text.x = element_text(size = 15, family = "Times New Roman"),
+    axis.text.y = element_text(size = 15, family = "Times New Roman")
+  )
 ```
 
-
 ```{r page_views_dec}
-# loop through all republican pages
+# Loop through all republican pages
 page_views_republican_dec <- list()
 for (i in republican_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_republican_dec[[i]] <- page_view_month(i, "20201201", "20201231")
   if (is.na(page_views_republican_dec[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
-# loop through all democrat pages
+# Loop through all democrat pages
 page_views_democrat_dec <- list()
 for (i in democrat_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_democrat_dec[[i]] <- page_view_month(i, "20201201", "20201231")
   if (is.na(page_views_democrat_dec[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
 updated_rep_pv_list_dec <- list()
-
-# Iterate through the original list
+# Iterate through list to standardise all page names
 for (original_name in names(page_views_republican_dec)) {
   # Retrieve the value associated with the original name
   page_views_dec <- page_views_republican_dec[[original_name]]
@@ -1383,8 +1480,8 @@ for (original_name in names(page_views_republican_dec)) {
   updated_rep_pv_list_dec[[standardized_name]] <- page_views_dec
 }
 
+# Same for democratic pages
 updated_dem_pv_list_dec <- list()
-
 for (original_name in names(page_views_democrat_dec)) {
   # Retrieve the value associated with the original name
   page_views_dec <- page_views_democrat_dec[[original_name]]
@@ -1401,57 +1498,56 @@ for (original_name in names(page_views_democrat_dec)) {
 # Extract names from the network vertices
 network_names_dec <- V(net_clickdec20_filtered)$name
 
+# Match the names of the network vertices with the page views
 matched_names_rep_dec <- network_names_dec[network_names_dec %in% names(updated_rep_pv_list_dec)]
 page_views_republican_filtered_dec <- updated_rep_pv_list_dec[matched_names_rep_dec]
-
 matched_names_dem_dec <- network_names_dec[network_names_dec %in% names(updated_dem_pv_list_dec)]
 page_views_democrat_filtered_dec <- updated_dem_pv_list_dec[matched_names_dem_dec]
 
-# order by descending page views
-page_views_republican_filtered_dec <- page_views_republican_filtered_dec[order(unlist(page_views_republican_filtered_dec), decreasing = TRUE)]
+# Order by descending page views
+page_views_republican_filtered_dec <- page_views_republican_filtered_dec[
+  order(unlist(page_views_republican_filtered_dec), decreasing = TRUE)]
+page_views_democrat_filtered_dec <- page_views_democrat_filtered_dec[
+  order(unlist(page_views_democrat_filtered_dec), decreasing = TRUE)]
 
-page_views_democrat_filtered_dec <- page_views_democrat_filtered_dec[order(unlist(page_views_democrat_filtered_dec), decreasing = TRUE)]
+# Filter out irrelevant pages
+page_views_democrat_filtered_dec <- page_views_democrat_filtered_dec[
+  !(names(page_views_democrat_filtered_dec) %in% pages_to_filter)]
+page_views_republican_filtered_dec <- page_views_republican_filtered_dec[
+  !(names(page_views_republican_filtered_dec) %in% pages_to_filter_rep)]
 
-page_views_democrat_filtered_dec <- page_views_democrat_filtered_dec[!(names(page_views_democrat_filtered_dec) %in% pages_to_filter)]
-
-page_views_republican_filtered_dec <- page_views_republican_filtered_dec[!(names(page_views_republican_filtered_dec) %in% pages_to_filter_rep)]
-
-# extract page names of the first 1000 pages
+# Extract page names of the first 1000 pages
 page_names_republican_dec <- names(page_views_republican_filtered_dec)[1:100]
 page_names_democrat_dec <- names(page_views_democrat_filtered_dec)[1:100]
-
-common_pages_rep <- intersect(page_names_republican, page_names_republican_dec)
-common_pages_dem <- intersect(page_names_democrat, page_names_democrat_dec)
 ```
 
 ```{r page_views_jan}
-# loop through all republican pages
+# Loop through all republican pages
 page_views_republican_jan <- list()
 for (i in republican_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_republican_jan[[i]] <- page_view_month(i, "20210101", "20210131")
   if (is.na(page_views_republican_jan[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
-# loop through all democrat pages
+# Loop through all democrat pages
 page_views_democrat_jan <- list()
 for (i in democrat_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_democrat_jan[[i]] <- page_view_month(i, "20210101", "20210131")
   if (is.na(page_views_democrat_jan[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # Get page view data for the specified time frame
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
 updated_rep_pv_list_jan <- list()
-
-# Iterate through the original list
+# Iterate through the list to standardise all page names
 for (original_name in names(page_views_republican_jan)) {
   # Retrieve the value associated with the original name
   page_views_jan_rep <- page_views_republican_jan[[original_name]]
@@ -1465,8 +1561,8 @@ for (original_name in names(page_views_republican_jan)) {
   updated_rep_pv_list_jan[[standardized_name]] <- page_views_jan_rep
 }
 
+# Same for democratic pages
 updated_dem_pv_list_jan <- list()
-
 for (original_name in names(page_views_democrat_jan)) {
   # Retrieve the value associated with the original name
   page_views_jan_dem <- page_views_democrat_jan[[original_name]]
@@ -1483,57 +1579,58 @@ for (original_name in names(page_views_democrat_jan)) {
 # Extract names from the network vertices
 network_names_jan <- V(net_clickjan21_filtered)$name
 
-matched_names_rep_jan <- network_names_jan[network_names_jan %in% names(updated_rep_pv_list_jan)]
+# Match the names of the network vertices with the page views
+matched_names_rep_jan <- network_names_jan[
+  network_names_jan %in% names(updated_rep_pv_list_jan)]
 page_views_republican_filtered_jan <- updated_rep_pv_list_jan[matched_names_rep_jan]
-
-matched_names_dem_jan <- network_names_jan[network_names_jan %in% names(updated_dem_pv_list_jan)]
+matched_names_dem_jan <- network_names_jan[
+  network_names_jan %in% names(updated_dem_pv_list_jan)]
 page_views_democrat_filtered_jan <- updated_dem_pv_list_jan[matched_names_dem_jan]
 
-# order by descending page views
+# Order by descending page views
 page_views_republican_filtered_jan <- page_views_republican_filtered_jan[order(
   unlist(page_views_republican_filtered_jan), decreasing = TRUE)]
-
 page_views_democrat_filtered_jan <- page_views_democrat_filtered_jan[order(
   unlist(page_views_democrat_filtered_jan), decreasing = TRUE)]
 
-page_views_democrat_filtered_jan <- page_views_democrat_filtered_jan[!(names(page_views_democrat_filtered_jan) %in% pages_to_filter)]
+# Filter out irrelevant pages
+page_views_democrat_filtered_jan <- page_views_democrat_filtered_jan[
+  !(names(page_views_democrat_filtered_jan) %in% pages_to_filter)]
+page_views_republican_filtered_jan <- page_views_republican_filtered_jan[
+  !(names(page_views_republican_filtered_jan) %in% pages_to_filter_rep)]
 
-page_views_republican_filtered_jan <- page_views_republican_filtered_jan[!(names(page_views_republican_filtered_jan) %in% pages_to_filter_rep)]
-
-# extract page names of the first 1000 pages
+# Extract page names of the first 1000 pages
 page_names_republican_jan <- names(page_views_republican_filtered_jan)[1:100]
 page_names_democrat_jan <- names(page_views_democrat_filtered_jan)[1:100]
 ```
 
-
 ```{r page_views_feb}
-# loop through all republican pages
+# Loop through all republican pages
 page_views_republican_feb <- list()
 for (i in republican_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_republican_feb[[i]] <- page_view_month(i, "20210201", "20210228")
   if (is.na(page_views_republican_feb[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
-# loop through all democrat pages
+# Loop through all democrat pages
 page_views_democrat_feb <- list()
 for (i in democrat_pages) {
-  # initialise empty list
-  # save results in a named list
+  # Get page view data for the specified time frame
   page_views_democrat_feb[[i]] <- page_view_month(i, "20210201", "20210228")
   if (is.na(page_views_democrat_feb[[i]])) {
-    # print(paste("Failed to fetch data for", i))
+    # If page name could not be matched, print error message
+    print(paste("Failed to fetch data for", i))
     next
   }
 }
 
 updated_rep_pv_list_feb <- list()
-
-# Iterate through the original list
+# Iterate through the list to standardise all page names
 for (original_name in names(page_views_republican_feb)) {
   # Retrieve the value associated with the original name
   page_views_feb <- page_views_republican_feb[[original_name]]
@@ -1547,8 +1644,8 @@ for (original_name in names(page_views_republican_feb)) {
   updated_rep_pv_list_feb[[standardized_name]] <- page_views_feb
 }
 
+# Same for democratic pages
 updated_dem_pv_list_feb <- list()
-
 for (original_name in names(page_views_democrat_feb)) {
   # Retrieve the value associated with the original name
   page_views_feb <- page_views_democrat_feb[[original_name]]
@@ -1565,43 +1662,51 @@ for (original_name in names(page_views_democrat_feb)) {
 # Extract names from the network vertices
 network_names_feb <- V(net_clickfeb21_filtered)$name
 
-matched_names_rep_feb <- network_names_feb[network_names_feb %in% names(updated_rep_pv_list_feb)]
+# Match the names of the network vertices with the page views
+matched_names_rep_feb <- network_names_feb[
+  network_names_feb %in% names(updated_rep_pv_list_feb)]
 page_views_republican_filtered_feb <- updated_rep_pv_list_feb[matched_names_rep_feb]
-
-matched_names_dem_feb <- network_names_feb[network_names_feb %in% names(updated_dem_pv_list_feb)]
+matched_names_dem_feb <- network_names_feb[
+  network_names_feb %in% names(updated_dem_pv_list_feb)]
 page_views_democrat_filtered_feb <- updated_dem_pv_list_feb[matched_names_dem_feb]
 
-# order by descending page views
+# Order by descending page views
 page_views_republican_filtered_feb <- page_views_republican_filtered_feb[order(
   unlist(page_views_republican_filtered_feb), decreasing = TRUE)]
-
 page_views_democrat_filtered_feb <- page_views_democrat_filtered_feb[order(
   unlist(page_views_democrat_filtered_feb), decreasing = TRUE)]
 
-page_views_democrat_filtered_feb <- page_views_democrat_filtered_feb[!(names(page_views_democrat_filtered_feb) %in% pages_to_filter)]
+# Filter out irrelevant pages
+page_views_democrat_filtered_feb <- page_views_democrat_filtered_feb[
+  !(names(page_views_democrat_filtered_feb) %in% pages_to_filter)]
+page_views_republican_filtered_feb <- page_views_republican_filtered_feb[
+  !(names(page_views_republican_filtered_feb) %in% pages_to_filter_rep)]
 
-page_views_republican_filtered_feb <- page_views_republican_filtered_feb[!(names(page_views_republican_filtered_feb) %in% pages_to_filter_rep)]
-
-# extract page names of the first 1000 pages
+# Extract page names of the first 1000 pages
 page_names_republican_feb <- names(page_views_republican_filtered_feb)[1:100]
 page_names_democrat_feb <- names(page_views_democrat_filtered_feb)[1:100]
 ```
 
-
 ```{r pages_linking_to_opposite_party}
+# Define a function to find nodes that have connections
+# to the opposite party
 find_nodes_with_opposing_neighbors <- function(network) {
+  
   nodes_with_opposing_neighbors <- c()
   
   for (i in 1:length(V(network))) {
-    # Get the party of the current node
+    
     current_party <- vertex_attr(network, name = "party")[i]
     neighbors_of_i <- neighbors(network, i)
     node_name <- V(network)$name[i]
+    
     if (current_party == "Republican") {
       # Get the party of the neighbors
       neighbors_party <- vertex_attr(network, name = "party")[neighbors_of_i]
       # Check if any neighbor has a different party
       if ("Democrat" %in% neighbors_party) {
+        # If Republican node with Democrat neighbors, 
+        # add to list with nodes with opposing neighbors
         nodes_with_opposing_neighbors <- c(nodes_with_opposing_neighbors, node_name)
       }
     } else if (current_party == "Democrat") {
@@ -1617,50 +1722,47 @@ find_nodes_with_opposing_neighbors <- function(network) {
   return(nodes_with_opposing_neighbors)
 }
 
+# Find number of pages with links to the opposite party for all months
 nodes_with_opposing_neighbors_sep <- find_nodes_with_opposing_neighbors(net_clicksep20_filtered)
-
 nodes_with_opposing_neighbors_oct <- find_nodes_with_opposing_neighbors(net_clickoct20_filtered)
-
 nodes_with_opposing_neighbors_nov <- find_nodes_with_opposing_neighbors(net_clicknov20_filtered)
-
 nodes_with_opposing_neighbors_dec <- find_nodes_with_opposing_neighbors(net_clickdec20_filtered)
-
 nodes_with_opposing_neighbors_jan <- find_nodes_with_opposing_neighbors(net_clickjan21_filtered)
-
 nodes_with_opposing_neighbors_feb <- find_nodes_with_opposing_neighbors(net_clickfeb21_filtered)
 
-# perform intersections for september
+# Perform intersections with the pages with
+# the most page views for September
 intersect_republican_sep <- intersect(
   nodes_with_opposing_neighbors_sep, page_names_republican_sep)
 intersect_democrat_sep <- intersect(
   nodes_with_opposing_neighbors_sep, page_names_democrat_sep)
 total_intersections_sep <- unique(c(intersect_republican_sep, intersect_democrat_sep))
 
-# perform intersections for october
+# Same for October
 intersect_republican_oct <- intersect(
   nodes_with_opposing_neighbors_oct, page_names_republican_oct)
 intersect_democrat_oct <- intersect(
   nodes_with_opposing_neighbors_oct, page_names_democrat_oct)
 total_intersections_oct <- unique(c(intersect_republican_oct, intersect_democrat_oct))
 
-# Perform intersections for november
+# Same for November
 intersect_republican_nov <- intersect(
   nodes_with_opposing_neighbors_nov, page_names_republican)
 intersect_democrat_nov <- intersect(
   nodes_with_opposing_neighbors_nov, page_names_democrat)
 total_intersections_nov <- unique(c(intersect_republican_nov, intersect_democrat_nov))
 
-# Perform intersections for december
+# Same for December
 intersect_republican_dec <- intersect(nodes_with_opposing_neighbors_dec, page_names_republican_dec)
 intersect_democrat_dec <- intersect(nodes_with_opposing_neighbors_dec, page_names_democrat_dec)
 total_intersections_dec <- unique(c(intersect_republican_dec, intersect_democrat_dec))
 
-# Perform intersections for january
+# Same for January
 intersect_republican_jan <- intersect(nodes_with_opposing_neighbors_jan, page_names_republican_jan)
 intersect_democrat_jan <- intersect(nodes_with_opposing_neighbors_jan, page_names_democrat_jan)
 total_intersections_jan <- unique(c(intersect_republican_jan, intersect_democrat_jan))
 
-# Perform intersections for february
+# Same for February
 intersect_republican_feb <- intersect(nodes_with_opposing_neighbors_feb, page_names_republican_feb)
 intersect_democrat_feb <- intersect(nodes_with_opposing_neighbors_feb, page_names_democrat_feb)
 total_intersections_feb <- unique(c(intersect_republican_feb, intersect_democrat_feb))
@@ -1688,6 +1790,7 @@ result_df <- data.frame(
   Count = unlist(result)
 )
 
+# Plot the results
 ggplot(result_df, aes(x = Month, y = Count)) +
   geom_bar(stat = "identity") +
   theme_minimal() +
@@ -1706,8 +1809,9 @@ ggplot(result_df, aes(x = Month, y = Count)) +
 
 ```
 
-
 ```{r define_random_walk}
+# Define a function to perform a random walk on the network
+# while recording information about the nodes visited
 random_party_walk <- function(graph, start, steps, weights, party_type, mode = "out", stuck = "return") {
   # Initialize the current node
   current_node <- start
@@ -1721,7 +1825,7 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
   node_names <- V(graph)$name
   edge_weights <- E(graph)$weight
   
-  # Function to fetch weights more efficiently
+  # Function to fetch weights in vectorized manner
   get_weights <- function(graph, current_node_index, neighbor_indices) {
     edge_ids <- sapply(neighbor_indices, function(neighbor_index) {
       get.edge.ids(graph, c(current_node_index, neighbor_index))
@@ -1736,7 +1840,7 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
     
     # If there are no neighbors, return or break depending on the "stuck" parameter
     if (length(node_neighbors) == 0) {
-      if (n_steps == 0) { # if first node was already an "isolate" (no outgoing edges)
+      if (n_steps == 0) { # if first node has no outgoing edges
         return(NA)
       }
       n_steps <- 15
@@ -1746,7 +1850,7 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
     # Convert neighbors to names and indices
     node_neighbor_indices <- as.numeric(node_neighbors)
     
-    # Fetch weights more efficiently
+    # Fetch weights in vectorized manner
     current_node_index <- match(current_node, node_names)
     neighbor_weights <- get_weights(graph, current_node_index, node_neighbor_indices)
     
@@ -1783,6 +1887,8 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
     }
   }
   
+  # If no partition switch occurred, set the number of steps to 20
+  # for identification later
   if (partition_switch == FALSE) {
     n_steps <- 20
   }
@@ -1791,7 +1897,11 @@ random_party_walk <- function(graph, start, steps, weights, party_type, mode = "
   return(c(current_node, n_steps))
 }
 
+# Define a function to run multiple random walks on the network
+# returning descriptive statistics on the results
 analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 1) {
+  
+  # Initialise counters
   total_steps_needed <- vector()
   total_n_part_shift <- 0
   total_n_trapped <- 0
@@ -1807,22 +1917,21 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
   total_n_of_shift_steps_5 <- 0
   
   for (iter in 1:iterations) {
+    # Initialise counters for current iteration
     n_trapped <- 0
     steps_needed <- vector(mode = "list", length = length(vertices))
     n_part_shift <- 0
     n_other <- 0
     n_republican <- 0
     n_democrat <- 0
-    
-    # Initialize counters for each iteration
     n_of_shift_steps_1 <- 0
     n_of_shift_steps_2 <- 0
     n_of_shift_steps_3 <- 0
     n_of_shift_steps_4 <- 0
     n_of_shift_steps_5 <- 0
     
+    # Iterate through starting pages
     for (i in vertices) {
-      n_steps_trapped <- 0
       cat("\rIteration:", iter, "Vertex:", i, flush = TRUE)
       start_node <- i
       
@@ -1831,21 +1940,26 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
       )
       
       if (all(is.na(output))) {
+        print("No outgoing edges")
+        n_trapped <- n_trapped + 1
         next
       }
       
+      # Extract output
       final_node <- output[1]
       steps_taken <- as.numeric(output[2])
       
-      
+      # If the random walk was trapped, increment the relevant counter
       if (steps_taken == 15) {
         n_trapped <- n_trapped + 1
         next
       }
       
+      # Get the party of the final node
       final_node_index <- match(final_node, V(graph)$name)
       final_node_party <- V(graph)$party[final_node_index]
       
+      # Increment the party counter relevant to the final node
       if (final_node_party == "Republican") {
         n_republican <- n_republican + 1
       } else if (final_node_party == "Democrat") {
@@ -1856,6 +1970,7 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
       
       steps_needed[[i]] <- steps_taken
       
+      # If party shift occurs, increment all relevant counters
       if (party == "Democrat" && final_node_party == "Republican") {
         n_part_shift <- n_part_shift + 1
         if (steps_taken == 1) n_of_shift_steps_1 <- n_of_shift_steps_1 + 1
@@ -1874,11 +1989,12 @@ analyze_party_walk <- function(graph, party, vertices, steps = 10, iterations = 
     }
     
     # Remove NULL, 15, and 20 values from steps_needed
+    # 20 being walks which do not cross the party
     steps_needed <- steps_needed[!sapply(steps_needed, is.null)]
     steps_needed <- steps_needed[steps_needed != 15]
     steps_needed <- steps_needed[steps_needed != 20]
     
-    # Get average
+    # Get average steps needed to reach other party
     steps_needed <- unlist(steps_needed)
     mean_steps <- mean(steps_needed, na.rm = TRUE)
     
@@ -1939,21 +2055,21 @@ results_dem_nov <- analyze_party_walk(
 results_rep_nov <- analyze_party_walk(
   net_clicknov20, "Republican", page_names_republican, steps = 5, iterations = 50)
 
-# run random walks for december
+# run random walks for December
 results_dem_dec <- analyze_party_walk(
   net_clickdec20, "Democrat", page_names_democrat_dec, steps = 5, iterations = 50)
 
 results_rep_dec <- analyze_party_walk(
   net_clickdec20, "Republican", page_names_republican_dec, steps = 5, iterations = 50)
 
-# run random walks for january
+# run random walks for January
 results_dem_jan <- analyze_party_walk(
   net_clickjan21, "Democrat", page_names_democrat_jan, steps = 5, iterations = 50)
 
 results_rep_jan <- analyze_party_walk(
   net_clickjan21, "Republican", page_names_republican_jan, steps = 5, iterations = 50)
 
-# run random walks for february
+# run random walks for February
 results_dem_feb <- analyze_party_walk(
   net_clickfeb21, "Democrat", page_names_democrat_feb, steps = 5, iterations = 50)
 
@@ -2950,6 +3066,13 @@ random_robust_net_jan21_full <- sample_degseq(out.deg = degree(robust_net_jan21_
 
 random_robust_net_feb21_full <- sample_degseq(out.deg = degree(robust_net_feb21_full, mode='out'), in.deg = degree(robust_net_feb21_full, mode='in'), method = "simple")
 
+# Assign party attributes to random networks
+assign_attributes_and_calculate_correlation(random_robust_net_sep20_full, robust_net_sep20_full, correlation = FALSE)
+assign_attributes_and_calculate_correlation(random_robust_net_oct20_full, robust_net_oct20_full, correlation = FALSE)
+assign_attributes_and_calculate_correlation(random_robust_net_nov20_full, robust_net_nov20_full, correlation = FALSE)
+assign_attributes_and_calculate_correlation(random_robust_net_dec20_full, robust_net_dec20_full, correlation = FALSE)
+assign_attributes_and_calculate_correlation(random_robust_net_jan21_full, robust_net_jan21_full, correlation = FALSE)
+assign_attributes_and_calculate_correlation(random_robust_net_feb21_full, robust_net_feb21_full, correlation = FALSE)
 
 # Run random walks
 results_random_robust_sep20 <- random_walk_random_networks(random_robust_net_sep20_full)
