@@ -1038,7 +1038,7 @@ ggplot(boundary_polarisation_scores, aes(x = Month)) +
     legend.title = element_text(size = 20, family = "Times New Roman"),
     legend.text = element_text(size = 15, family = "Times New Roman")
   ) +
-  scale_y_continuous(limits = c(0, 0.5))
+  scale_y_continuous(limits = c(0, NA))
 ```
 
 ```{r bp_both_parties}
@@ -1050,10 +1050,17 @@ boundary_polarisation_long <- boundary_polarisation_scores %>%
   mutate(Metric = factor(Metric, levels = c("Random", "Boundary_Polarisation", "Republican", "Democrat")))
 
 # Define custom colors
-custom_colors <- c("Random" = "darkorange", 
-                   "Boundary_Polarisation" = "purple",
-                   "Republican" = "red",
-                   "Democrat" = "blue")
+custom_colors <- c("Random Network" = "darkorange", 
+                   "Whole Empirical Network" = "purple",
+                   "Republican Pages" = "red",
+                   "Democrat Pages" = "blue")
+
+boundary_polarisation_long <- boundary_polarisation_long %>%
+  mutate(Metric = recode(Metric,
+                         "Random" = "Random Network",
+                         "Boundary_Polarisation" = "Whole Empirical Network",
+                         "Republican" = "Republican Pages",
+                         "Democrat" = "Democrat Pages"))
 
 # Plot the results with differentiation by party
 ggplot(boundary_polarisation_long, aes(x = Month, y = Value, color = Metric, group = Metric)) +
@@ -1075,16 +1082,7 @@ ggplot(boundary_polarisation_long, aes(x = Month, y = Value, color = Metric, gro
     legend.title = element_text(size = 20, family = "Times New Roman"),
     legend.text = element_text(size = 15, family = "Times New Roman")
   ) +
-  scale_y_continuous(limits = c(0, 0.5))
-```
-
-
-
-```{r save_image2}
-save.image("data/click_networks_rw.RData")
-save.image("data/click_networks_rw2.RData")
-
-load("data/click_networks_rw2.RData")
+  scale_y_continuous(limits = c(0, NA))
 ```
 
 ```{r define_pv_function}
@@ -2953,7 +2951,7 @@ ggplot(exposure_robust_data_long, aes(x = month, y = value, fill = variable)) +
     title = "Figure C4. Exposure to Diverse Information by Party for Networks with Equal Pages per Party",
     x = "Month",
     y = "Exposure to Diverse Information",
-    fill = "Party"
+    fill = "Party of Starting Node"
   ) +
   scale_fill_manual(values = custom_colors) +
   theme_minimal() +
@@ -3118,20 +3116,21 @@ custom_colors <- c("Democrat" = "dodgerblue", "Republican" = "red")
 ggplot(exposure_random_robust_data_long, aes(x = month, y = value, fill = variable)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(
-    title = "Figure C6. Exposure to Diverse Information by Party for Networks with Equal Pages per Party",
+    title = "Figure C6. Exposure to Diverse Information by Party for Random Networks with Equal Pages per Party",
     x = "Month",
     y = "Exposure to Diverse Information",
-    fill = "Party"
+    fill = "Party of Starting Node"
   ) +
   scale_fill_manual(values = custom_colors) +
   theme_minimal() +
   theme(
     text = element_text(family = "Times New Roman"),
-    plot.title = element_text(size = 18, family = "Times New Roman", hjust = 0.5),
-    axis.title.x = element_text(size = 15, family = "Times New Roman"),
-    axis.title.y = element_text(size = 15, family = "Times New Roman"),
+    axis.text.x = element_text(size = 15, hjust = 1),
+    plot.title = element_text(size = 23, family = "Times New Roman", hjust = 0.5),
+    axis.title.x = element_text(size = 20, family = "Times New Roman"),
+    axis.title.y = element_text(size = 20, family = "Times New Roman"),
     legend.text = element_text(size = 15, family = "Times New Roman"),
-    legend.title = element_text(size = 15, family = "Times New Roman")
+    legend.title = element_text(size = 20, family = "Times New Roman")
   )
 
 ```
@@ -3185,7 +3184,7 @@ ggplot(exposure_df_random_robust, aes(x = steps, y = exposure, color = month, gr
   geom_line() +
   geom_point(size = 1) +  # Adjust the size of the points
   labs(
-    title = "Figure C7. Exposure to Diverse Information By Number of Steps for Networks with Equal Pages per Party",
+    title = "Figure C7. Exposure to Diverse Information By Number of Steps for Random Networks with Equal Pages per Party",
     x = "Number of Steps",
     y = "% of Walks Exposed to Other Partition",
     color = "Month"
@@ -3200,9 +3199,3 @@ ggplot(exposure_df_random_robust, aes(x = steps, y = exposure, color = month, gr
     legend.title = element_text(size = 18)
   )
 ```
-
-
-```{r}
-save.image("data/robustness_checks.RData")
-```
-
